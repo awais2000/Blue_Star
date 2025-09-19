@@ -1,7 +1,10 @@
-{
-  "compilerOptions": {
-    "module": "CommonJS",
-    "resolveJsonModule": true,
-    "esModuleInterop": true
+  {
+    "compilerOptions": {
+      "module": "es2020",
+      "target": "ES2020",
+      "esModuleInterop": true,
+      "allowImportingTsExtensions": true,
+      "noEmit": true,
+      "moduleResolution": "node"
+    }
   }
-}

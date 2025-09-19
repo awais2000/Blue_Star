@@ -4,10 +4,10 @@ type Application = pkg.Application;
 type Request = pkg.Request;
 type Response = pkg.Response;
 
-import { addUser, login } from "../controllers/authController";
-import { authenticateToken } from "../middlewares/authMiddleware"
-import { addProduct, deleteProducts, getProducts, getUploadedFile, searchProduct, updateProduct } from "../controllers/productController";
-import {upload} from "../middlewares/uploadMiddleware";
+import { addUser, login } from "../controllers/authController.ts";
+import { authenticateToken } from "../middlewares/authMiddleware.ts"
+import { addProduct, deleteProducts, getProducts, getUploadedFile, searchProduct, updateProduct } from "../controllers/productController.ts";
+import {upload} from "../middlewares/uploadMiddleware.ts";
 
 
 export default (app: Application): void => {

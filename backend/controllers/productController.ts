@@ -1,10 +1,10 @@
 import express from "express";
-import Product from "../models/Products";
+import Product from "../models/Products.ts";
 import * as cloudinary from "cloudinary";
 import dotenv from "dotenv";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getPhotoUrl, uploadPhoto } from "../utils/cloudinary"
+import { getPhotoUrl, uploadPhoto } from "../utils/cloudinary.ts"
 
 
 const __filename = fileURLToPath(import.meta.url);

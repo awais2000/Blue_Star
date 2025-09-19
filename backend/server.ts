@@ -8,8 +8,8 @@ type NextFunction = pkg.NextFunction;
 import dotenv from "dotenv";
 import cors from "cors";
 import http from "http";
-import connectDB from "./config/db";
-import  adminRoutes  from "./routes/adminRoutes";
+import connectDB from "./config/db.ts";
+import  adminRoutes  from "./routes/adminRoutes.ts";
 
 dotenv.config();
 
