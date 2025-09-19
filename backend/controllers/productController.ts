@@ -1,14 +1,13 @@
 import express from "express";
-import Product from "../models/Products.ts";
+import Product from "../models/Products";
 import * as cloudinary from "cloudinary";
 import dotenv from "dotenv";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getPhotoUrl, uploadPhoto } from "../utils/cloudinary.ts"
+import { getPhotoUrl, uploadPhoto } from "../utils/cloudinary"
 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -17,13 +16,6 @@ interface MulterRequest extends express.Request {
 }
 
 type UploadApiResponse = cloudinary.UploadApiResponse;
-
-
-export const getUploadedFile = async (req: express.Request, res: express.Response): Promise<void> => {
-  const filePath = path.join(__dirname, "addProduct.html");
-  res.sendFile(filePath);
-};
-
 
 
 export const addProduct = async (req: express.Request, res: express.Response): Promise<void> => {
@@ -252,3 +244,10 @@ export const searchProduct = async (req: express.Request, res: express.Response)
     });
   }
 };
+
+
+
+// export const getUploadedFile = async (req: express.Request, res: express.Response): Promise<void> => {
+//   const filePath = path.join(__dirname, "addProduct.html");
+//   res.sendFile(filePath);
+// };
