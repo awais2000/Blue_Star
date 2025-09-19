@@ -1,0 +1,382 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Product</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+    }
+    
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: #357abD;
+    }
+    
+    .response {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Add New Product</h1>
+    
+    <form id="productForm" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="productName">Product Name</label>
+        <input type="text" id="productName" name="productName" required placeholder="Enter product name">
+      </div>
+      
+      <div class="form-group">
+        <label for="quantity">Quantity</label>
+        <input type="number" id="quantity" name="quantity" required placeholder="Enter quantity" min="1">
+      </div>
+      
+      <div class="form-group">
+        <label for="price">Price ($)</label>
+        <input type="number" id="price" name="price" required placeholder="Enter price" min="0.01" step="0.01">
+      </div>
+      
+      <div class="form-group">
+        <label for="image">Product Image</label>
+        <input type="file" id="image" name="image" required accept="image/*">
+      </div>
+      
+      <button type="submit">Add Product</button>
+    </form>
+    
+    <div id="responseMessage" class="response"></div>
+  </div>
+
+  <script>
+    document.getElementById('productForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const responseElement = document.getElementById('responseMessage');
+      
+      try {
+        const response = await fetch('http://localhost:3001/addProduct', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          responseElement.style.display = 'block';
+          responseElement.className = 'response success';
+          responseElement.textContent = 'Product added successfully: ' + JSON.stringify(data.product);
+          this.reset();
+        } else {
+          throw new Error(data.message || 'Failed to add product');
+        }
+      } catch (error) {
+        responseElement.style.display = 'block';
+        responseElement.className = 'response error';
+        responseElement.textContent = 'Error: ' + error.message;
+      }
+    });
+  </script>
+</body>
+</html> 
+-->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Update Product</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f7f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    
+    .container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 600;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #34495e;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      box-sizing: border-box;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+    
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.3s;
+    }
+    
+    button:hover {
+      background-color: #2980b9;
+    }
+    
+    .response {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+    
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      margin-bottom: 20px;
+      padding: 12px;
+      border-radius: 6px;
+    }
+    
+    .help-text {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Update Product</h1>
+    
+    <div class="info">
+      <p>Note: Only fill in the fields you want to update. Leave others blank to keep current values.</p>
+    </div>
+    
+    <form id="updateForm" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="productId">Product ID *</label>
+        <input type="text" id="productId" name="id" required placeholder="Enter product ID">
+      </div>
+      
+      <div class="form-group">
+        <label for="productName">Product Name (optional)</label>
+        <input type="text" id="productName" name="productName" placeholder="Enter new product name">
+      </div>
+      
+      <div class="form-group">
+        <label for="quantity">Quantity (optional)</label>
+        <input type="number" id="quantity" name="quantity" placeholder="Enter new quantity" min="0">
+        <p class="help-text">Leave empty to keep current quantity</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="price">Price ($) (optional)</label>
+        <input type="number" id="price" name="price" placeholder="Enter new price" min="0.01" step="0.01">
+        <p class="help-text">Leave empty to keep current price</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="image">New Product Image (optional)</label>
+        <input type="file" id="image" name="image" accept="image/*">
+        <p class="help-text">Leave empty to keep current image</p>
+      </div>
+      
+      <button type="submit">Update Product</button>
+    </form>
+    
+    <div id="responseMessage" class="response"></div>
+  </div>
+
+  <script>
+    document.getElementById('updateForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const productId = document.getElementById('productId').value;
+      const responseElement = document.getElementById('responseMessage');
+      
+      // Clear previous messages
+      responseElement.style.display = 'none';
+      responseElement.className = 'response';
+      
+      if (!productId) {
+        showError('Product ID is required');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`http://localhost:3001/updateProduct/${productId}`, {
+          method: 'PUT',
+          body: formData
+        });
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          
+          if (response.ok) {
+            showSuccess('Product updated successfully!');
+            this.reset();
+          } else {
+            throw new Error(data.message || `Server error: ${response.status}`);
+          }
+        } else {
+          // Handle non-JSON responses (HTML errors)
+          const text = await response.text();
+          throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
+        }
+      } catch (error) {
+        showError('Error: ' + error.message);
+      }
+    });
+    
+    function showSuccess(message) {
+      const responseElement = document.getElementById('responseMessage');
+      responseElement.style.display = 'block';
+      responseElement.className = 'response success';
+      responseElement.textContent = message;
+    }
+    
+    function showError(message) {
+      const responseElement = document.getElementById('responseMessage');
+      responseElement.style.display = 'block';
+      responseElement.className = 'response error';
+      responseElement.textContent = message;
+    }
+  </script>
+</body>
+</html> 
