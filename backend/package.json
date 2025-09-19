@@ -2,10 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "server.ts",
+  "main": "server",
   "scripts": {
-    "start": "nodemon server.ts",
-    "dev": "ts-node server.ts",
+    "start": "nodemon server",
+    "dev": "ts-node server",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

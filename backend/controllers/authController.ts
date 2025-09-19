@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import fs from "fs";
 import path from "path";
-import User from "../models/User.ts";
+import User from "../models/User";
 import dotenv from "dotenv";
 dotenv.config();
 
