@@ -8,6 +8,7 @@ import { addUser, login } from "../controllers/authController";
 import { authenticateToken } from "../middlewares/authMiddleware"
 import { addProduct, deleteProducts, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
+import { addCustomer, deleteCustomer, getCustomer, updateCustomer } from "../controllers/customerController";
 
 
 export default (app: Application): void => {
@@ -17,8 +18,6 @@ export default (app: Application): void => {
 
     app.post('/addProduct', upload.single('image'), addProduct);
 
-    // app.get('/getUploadedFile', getUploadedFile);
-
     app.get('/getProducts', getProducts);
 
     app.put('/updateProduct/:id', upload.single('image'), updateProduct);
@@ -26,4 +25,14 @@ export default (app: Application): void => {
     app.patch('/deleteProducts/:id', deleteProducts);
 
     app.get('/searchProduct', searchProduct);
+
+    app.post('/addCustomer', addCustomer);
+
+    app.get('/getCustomers', getCustomer);
+
+    app.patch('/deleteCustomer/:id', deleteCustomer);
+
+    app.put('/updateCustomer/:id', updateCustomer);
+
+    
 }

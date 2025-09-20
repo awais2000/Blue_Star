@@ -57,7 +57,6 @@ const addProduct = async (req, res) => {
             return;
         }
         let imagePublicId = null;
-        // const publicId = req.file as unknown as UploadApiResponse;
         const { public_id } = await (0, cloudinary_1.uploadPhoto)(req.file.path, 'profile_pictures');
         imagePublicId = public_id;
         const newProduct = await Products_1.default.create({
@@ -66,10 +65,7 @@ const addProduct = async (req, res) => {
             price,
             image: imagePublicId ? JSON.stringify([imagePublicId]) : null,
         });
-        res.status(201).send({
-            message: "Product created successfully",
-            product: newProduct,
-        });
+        res.status(201).send({ ...newProduct[0] });
     }
     catch (error) {
         console.error("Error adding product:", error);

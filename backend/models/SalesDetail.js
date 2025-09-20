@@ -1,0 +1,54 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const mongoose_1 = __importStar(require("mongoose"));
+;
+const SalesDetailSchema = new mongoose_1.Schema({
+    rate: { type: Number, required: true },
+    discount: { type: Number, required: true },
+    invoiceNo: { type: Number, required: true, ref: "Invoice" },
+    total: { type: Number, required: true },
+    VAT: { type: Number, requried: true },
+    netTotal: { type: Number, required: true },
+    invoice: { type: String, requried: true },
+    status: {
+        type: String,
+        enum: ["Y", "N"],
+        default: "Y",
+    },
+    createdAt: { type: Date, default: Date.now }
+}, { versionKey: false });
+const SalesDetail = mongoose_1.default.model("SalesDetail", SalesDetailSchema);
+exports.default = SalesDetail;

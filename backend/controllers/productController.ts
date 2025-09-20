@@ -36,7 +36,6 @@ export const addProduct = async (req: express.Request, res: express.Response): P
 
     let imagePublicId = null;
 
-    // const publicId = req.file as unknown as UploadApiResponse;
     const { public_id } = await uploadPhoto(req.file.path, 'profile_pictures');
 
     imagePublicId = public_id;
@@ -48,10 +47,8 @@ export const addProduct = async (req: express.Request, res: express.Response): P
       image: imagePublicId ? JSON.stringify([imagePublicId]) : null,
     });
 
-    res.status(201).send({
-      message: "Product created successfully",
-      product: newProduct,
-    });
+    res.status(201).send({ ...newProduct[0] });
+    
   } catch (error: any) {
     console.error("Error adding product:", error);
     res.status(500).send({ message: "Internal Server Error!", error: error.message });
