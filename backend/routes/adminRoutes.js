@@ -13,6 +13,7 @@ const customerController_1 = require("../controllers/customerController");
 exports.default = (app) => {
     app.post('/addUser', authMiddleware_1.authenticateToken, authController_1.addUser);
     app.post('/login', authController_1.login);
+    app.put('/updateUser/:id', authController_1.updateUser);
     app.post('/addProduct', uploadMiddleware_1.upload.single('image'), productController_1.addProduct);
     app.get('/getProducts', productController_1.getProducts);
     app.put('/updateProduct/:id', uploadMiddleware_1.upload.single('image'), productController_1.updateProduct);

@@ -192,7 +192,7 @@ const updateProduct = async (req, res) => {
         }
         res.status(200).send({
             message: "Product updated successfully",
-            product: updatedProduct,
+            ...updatedProduct.toObject(),
         });
     }
     catch (error) {

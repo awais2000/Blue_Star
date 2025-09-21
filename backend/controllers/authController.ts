@@ -88,3 +88,46 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: "Internal Server Error!" });
   }
 };
+
+
+
+
+
+export const updateUser = async (req: Request, res: Response): Promise<void> =>{
+  try{
+      const id = req.params.id;
+      const { name, email, password } = req.body;
+      const requiredFields = ["name", "email", "password"];
+      const missingFields = requiredFields.filter(field => !req.body[field]);
+      if (missingFields.length > 0) {
+        res.status(400).json({ message: `Missing: ${missingFields.join(", ")}` });
+        return;
+      }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const updatedUser = await User.findByIdAndUpdate(
+        id, 
+        {
+          $set: {
+            name,
+            email,
+            hashedPassword,
+          },
+        },
+        { new: true } 
+      );
+
+    if (!updatedUser) {
+      res.status(404).json({ message: "User not found!" });
+      return;
+    }
+    res.status(200).send({message: "User Updated Success!",
+    ...updatedUser.toObject(),
+  })
+  }
+  catch(error){
+     console.error("Login Error:", error.message);
+    res.status(500).json({ message: "Internal Server Error!" });
+  }
+}

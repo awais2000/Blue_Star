@@ -4,7 +4,7 @@ type Application = pkg.Application;
 type Request = pkg.Request;
 type Response = pkg.Response;
 
-import { addUser, login } from "../controllers/authController";
+import { addUser, login, updateUser } from "../controllers/authController";
 import { authenticateToken } from "../middlewares/authMiddleware"
 import { addProduct, deleteProducts, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
@@ -15,6 +15,8 @@ export default (app: Application): void => {
     app.post('/addUser', authenticateToken, addUser);
 
     app.post('/login', login);
+
+    app.put('/updateUser/:id', updateUser);
 
     app.post('/addProduct', upload.single('image'), addProduct);
 

@@ -199,8 +199,9 @@ export const updateProduct = async (req: express.Request, res: express.Response)
 
     res.status(200).send({
       message: "Product updated successfully",
-      product: updatedProduct,
+      ...updatedProduct.toObject(),
     });
+    
   } catch (error: any) {
     console.error("Error updating product:", error);
     res.status(500).send({ 

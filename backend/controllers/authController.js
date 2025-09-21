@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.login = exports.addUser = void 0;
+exports.updateUser = exports.login = exports.addUser = void 0;
 const express_1 = __importDefault(require("express"));
 const express = express_1.default;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -73,3 +73,36 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
+const updateUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { name, email, password } = req.body;
+        const requiredFields = ["name", "email", "password"];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        if (missingFields.length > 0) {
+            res.status(400).json({ message: `Missing: ${missingFields.join(", ")}` });
+            return;
+        }
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt_1.default.hash(password, saltRounds);
+        const updatedUser = await User_1.default.findByIdAndUpdate(id, {
+            $set: {
+                name,
+                email,
+                hashedPassword,
+            },
+        }, { new: true });
+        if (!updatedUser) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+        res.status(200).send({ message: "User Updated Success!",
+            ...updatedUser.toObject(),
+        });
+    }
+    catch (error) {
+        console.error("Login Error:", error.message);
+        res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+exports.updateUser = updateUser;
