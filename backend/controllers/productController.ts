@@ -40,15 +40,18 @@ export const addProduct = async (req: express.Request, res: express.Response): P
 
     imagePublicId = public_id;
 
-    const newProduct = await Product.create({
+   const newProduct = await Product.create({
       productName,
       quantity,
       price,
-      image: imagePublicId ? JSON.stringify([imagePublicId]) : null,
+      image: imagePublicId || null,
     });
 
-    res.status(201).send({ ...newProduct[0] });
-    
+    res.status(201).send({
+      message: "Product created successfully",
+      ...newProduct.toObject(), 
+    });
+
   } catch (error: any) {
     console.error("Error adding product:", error);
     res.status(500).send({ message: "Internal Server Error!", error: error.message });

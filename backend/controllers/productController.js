@@ -63,9 +63,12 @@ const addProduct = async (req, res) => {
             productName,
             quantity,
             price,
-            image: imagePublicId ? JSON.stringify([imagePublicId]) : null,
+            image: imagePublicId || null,
         });
-        res.status(201).send({ ...newProduct[0] });
+        res.status(201).send({
+            message: "Product created successfully",
+            ...newProduct.toObject(),
+        });
     }
     catch (error) {
         console.error("Error adding product:", error);

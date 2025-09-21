@@ -33,6 +33,4 @@ export default (app: Application): void => {
     app.patch('/deleteCustomer/:id', deleteCustomer);
 
     app.put('/updateCustomer/:id', updateCustomer);
-
-    
 }
