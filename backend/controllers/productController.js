@@ -36,11 +36,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.searchProduct = exports.updateProduct = exports.deleteProducts = exports.getProducts = exports.addProduct = void 0;
+exports.getProductById = exports.searchProduct = exports.updateProduct = exports.deleteProducts = exports.getProducts = exports.addProduct = void 0;
 const Products_1 = __importDefault(require("../models/Products"));
 const cloudinary = __importStar(require("cloudinary"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cloudinary_1 = require("../utils/cloudinary");
+const errorHandler_1 = require("../utils/errorHandler");
 // const __dirname = path.dirname(__filename);
 dotenv_1.default.config();
 const addProduct = async (req, res) => {
@@ -238,3 +239,49 @@ exports.searchProduct = searchProduct;
 //   const filePath = path.join(__dirname, "addProduct.html");
 //   res.sendFile(filePath);
 // };
+const getProductById = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const product = await Products_1.default.findById(id).lean(); // lean() makes it a plain JS object
+        if (!product) {
+            res.status(404).json({ message: "Product not found" });
+            return;
+        }
+        let imageUrl = null;
+        try {
+            let publicId = null;
+            if (Array.isArray(product.image)) {
+                publicId = product.image[0];
+            }
+            else if (typeof product.image === "string") {
+                if (product.image.startsWith("[")) {
+                    const parsed = JSON.parse(product.image);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        publicId = parsed[0];
+                    }
+                }
+                else {
+                    publicId = product.image;
+                }
+            }
+            if (publicId) {
+                imageUrl = (0, cloudinary_1.getPhotoUrl)(publicId, {
+                    width: 300,
+                    crop: "fit",
+                    quality: "auto",
+                });
+            }
+        }
+        catch (err) {
+            console.warn(`Error processing product image ${product._id}:`, err.message);
+        }
+        res.status(200).json({
+            ...product,
+            image: imageUrl,
+        });
+    }
+    catch (error) {
+        (0, errorHandler_1.handleError)(res, error);
+    }
+};
+exports.getProductById = getProductById;

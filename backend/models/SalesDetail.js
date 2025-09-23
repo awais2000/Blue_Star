@@ -36,19 +36,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 ;
 const SalesDetailSchema = new mongoose_1.Schema({
-    rate: { type: Number, required: true },
-    discount: { type: Number, required: true },
+    productId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Product", required: true },
+    customerName: { type: String, trim: true },
+    customerContact: { type: String },
+    unitPrice: { type: Number, required: true },
+    discount: { type: Number },
+    date: { type: Date, required: true },
+    QTY: { type: Number, required: true },
     invoiceNo: { type: Number, required: true, ref: "Invoice" },
     total: { type: Number, required: true },
-    VAT: { type: Number, requried: true },
+    VAT: { type: Number, required: true },
     netTotal: { type: Number, required: true },
-    invoice: { type: String, requried: true },
+    invoice: { type: String, required: true },
     status: {
         type: String,
         enum: ["Y", "N"],
         default: "Y",
     },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
 }, { versionKey: false });
 const SalesDetail = mongoose_1.default.model("SalesDetail", SalesDetailSchema);
 exports.default = SalesDetail;

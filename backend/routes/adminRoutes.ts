@@ -6,9 +6,11 @@ type Response = pkg.Response;
 
 import { addUser, login, updateUser } from "../controllers/authController";
 import { authenticateToken } from "../middlewares/authMiddleware"
-import { addProduct, deleteProducts, getProducts, searchProduct, updateProduct } from "../controllers/productController";
+import { addProduct, deleteProducts, getProductById, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
 import { addCustomer, deleteCustomer, getCustomer, updateCustomer } from "../controllers/customerController";
+import { createSaleData } from "../controllers/salesController";
+import { deleteRequest } from "../controllers/deleteController";
 
 
 export default (app: Application): void => {
@@ -26,6 +28,8 @@ export default (app: Application): void => {
 
     app.patch('/deleteProducts/:id', deleteProducts);
 
+    app.get('/getProductById/:id', getProductById);
+
     app.get('/searchProduct', searchProduct);
 
     app.post('/addCustomer', addCustomer);
@@ -35,4 +39,8 @@ export default (app: Application): void => {
     app.patch('/deleteCustomer/:id', deleteCustomer);
 
     app.put('/updateCustomer/:id', updateCustomer);
+
+    app.post('/createSaleData', createSaleData);
+
+    app.post('/deleteRequest', deleteRequest);
 }

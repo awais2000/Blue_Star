@@ -36,15 +36,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 ;
 const SalesSchema = new mongoose_1.Schema({
-    customerId: { type: Number, required: true, ref: "Customers", trim: true },
-    productId: { type: Number, required: true, ref: "Products" },
+    productId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Product", required: true },
     invoiceNo: { type: Number, required: true, ref: "Invoice" },
     status: {
         type: String,
         enum: ["Y", "N"],
         default: "Y",
     },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
 }, { versionKey: false });
-const Sales = mongoose_1.default.model("Products", SalesSchema);
+const Sales = mongoose_1.default.model("Sales", SalesSchema);
 exports.default = Sales;

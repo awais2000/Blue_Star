@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getPhotoUrl, uploadPhoto } from "../utils/cloudinary"
+import { handleError } from "../utils/errorHandler";
+
 
 
 // const __dirname = path.dirname(__filename);
@@ -252,3 +254,57 @@ export const searchProduct = async (req: express.Request, res: express.Response)
 //   const filePath = path.join(__dirname, "addProduct.html");
 //   res.sendFile(filePath);
 // };
+
+
+
+export const getProductById = async (
+  req: express.Request,
+  res: express.Response
+): Promise<void> => {
+  try {
+    const id = req.params.id;
+
+    const product = await Product.findById(id).lean(); // lean() makes it a plain JS object
+
+    if (!product) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+
+    let imageUrl: string | null = null;
+
+    try {
+      let publicId: string | null = null;
+
+      if (Array.isArray(product.image)) {
+        publicId = product.image[0];
+      } else if (typeof product.image === "string") {
+        if (product.image.startsWith("[")) {
+          const parsed = JSON.parse(product.image);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            publicId = parsed[0];
+          }
+        } else {
+          publicId = product.image;
+        }
+      }
+
+      if (publicId) {
+        imageUrl = getPhotoUrl(publicId, {
+          width: 300,
+          crop: "fit",
+          quality: "auto",
+        });
+      }
+    } catch (err: any) {
+      console.warn(`Error processing product image ${product._id}:`, err.message);
+    }
+
+    res.status(200).json({
+      ...product,
+      image: imageUrl,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
