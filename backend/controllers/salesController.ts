@@ -118,16 +118,25 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
       const discount = Number(flatItem.discount || 0);
       const selectVAT = flatItem.VATstatus === "withVAT";
 
-      // Always calculate VAT from ORIGINAL rate (not updateRate)
+      // Always calculate VAT from ORIGINAL rate
       const VATtax = (rate * qty * 5) / 100;
 
-      // total depends on selectVAT
+      // The 'total' calculation remains the same
       const total = selectVAT
-        ? (rate * qty) - discount // With VAT => use full rate
-        : ((rate - (rate * 5) / 100) * qty) - discount; // Without VAT => remove VAT from rate
+        ? (rate * qty) - discount
+        : ((rate - (rate * 5) / 100) * qty) - discount;
 
-      // Final net total
-      const netTotal = selectVAT ? total + VATtax : total;
+      let netTotal = 0;
+
+      // The new logic for netTotal based on your request
+      if (selectVAT) {
+        netTotal = total + VATtax;
+      } else {
+        // For "withoutVAT", subtract VAT from original total and then add it back
+        const originalTotal = (rate * qty) - discount;
+        const totalWithoutVAT = originalTotal - VATtax;
+        netTotal = totalWithoutVAT + VATtax;
+      }
 
       allItems.push({
         productName: (product as any)?.productName,
