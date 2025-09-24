@@ -1,8 +1,15 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
+import { IProducts } from "../models/Products";
 
+
+export interface IInvoiceItem {
+  productId: mongoose.Types.ObjectId; 
+  qty: number;
+  unitPrice: number;
+}
 
 export interface ISalesDetail extends Document {
-    productId: mongoose.Types.ObjectId,
+    productId: mongoose.Types.ObjectId | IProducts; 
     customerName:  string;
     customerContact: string;
     unitPrice:  number;
@@ -16,13 +23,20 @@ export interface ISalesDetail extends Document {
     invoice: string;
     status: "Y" | "N";
     createdAt: Date;
+    items: IInvoiceItem[];
 };
 
 
 
 const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
   {
-    productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    items: [
+    {
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products" },
+      qty: Number,
+      unitPrice: Number
+    }
+  ],
     customerName: { type: String, trim: true },
     customerContact: { type: String },
     unitPrice: { type: Number, required: true },
@@ -43,8 +57,6 @@ const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
   },
   { versionKey: false }
 );
-
-
 
 
 

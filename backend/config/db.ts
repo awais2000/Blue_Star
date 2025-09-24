@@ -16,4 +16,3 @@ export default async function connectDB(): Promise<void> {
     process.exit(1);
   }
 }
-

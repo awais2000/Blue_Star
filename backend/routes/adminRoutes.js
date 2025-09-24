@@ -12,6 +12,7 @@ const uploadMiddleware_1 = require("../middlewares/uploadMiddleware");
 const customerController_1 = require("../controllers/customerController");
 const salesController_1 = require("../controllers/salesController");
 const deleteController_1 = require("../controllers/deleteController");
+const receiptController_1 = require("../controllers/receiptController");
 exports.default = (app) => {
     app.post('/addUser', authMiddleware_1.authenticateToken, authController_1.addUser);
     app.post('/login', authController_1.login);
@@ -28,4 +29,8 @@ exports.default = (app) => {
     app.put('/updateCustomer/:id', customerController_1.updateCustomer);
     app.post('/createSaleData', salesController_1.createSaleData);
     app.post('/deleteRequest', deleteController_1.deleteRequest);
+    app.post('/printSalesData', receiptController_1.printSalesData);
+    app.put('/addPrintConfig/:id', receiptController_1.addPrintConfig);
+    app.post('/addProductToCart', salesController_1.addProductToCart);
+    app.get('/getProductInCart', salesController_1.getProductInCart);
 };

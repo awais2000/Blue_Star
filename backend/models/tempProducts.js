@@ -35,31 +35,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 ;
-const SalesDetailSchema = new mongoose_1.Schema({
-    items: [
-        {
-            productId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "Products" },
-            qty: Number,
-            unitPrice: Number
-        }
-    ],
-    customerName: { type: String, trim: true },
-    customerContact: { type: String },
-    unitPrice: { type: Number, required: true },
-    discount: { type: Number },
-    date: { type: Date, required: true },
+const TempProductsSchema = new mongoose_1.Schema({
+    productId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Products", required: true },
     QTY: { type: Number, required: true },
-    invoiceNo: { type: Number, required: true, ref: "Invoice" },
-    total: { type: Number, required: true },
-    VAT: { type: Number, required: true },
-    netTotal: { type: Number, required: true },
-    invoice: { type: String, required: true },
-    status: {
-        type: String,
-        enum: ["Y", "N"],
-        default: "Y",
-    },
-    createdAt: { type: Date, default: Date.now },
+    unitPrice: { type: Number, required: true, },
+    discount: { type: Number, trim: true },
+    VATstatus: { type: String, trim: true },
 }, { versionKey: false });
-const SalesDetail = mongoose_1.default.model("SalesDetail", SalesDetailSchema);
-exports.default = SalesDetail;
+const TempProducts = mongoose_1.default.model("TempProducts", TempProductsSchema);
+exports.default = TempProducts;
