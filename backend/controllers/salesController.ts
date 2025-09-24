@@ -93,67 +93,63 @@ export const addProductToCart = async (req: express.Request, res: express.Respon
 
 
 
+export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
+  try {
+    const cartItems = await TempProducts.find()
+      .populate("productId")
+      .lean();
 
-// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
-//   try {
-//     const cartDocs = await TempProducts.find()
-//       .populate("items.productId")
-//       .lean();
+    if (!cartItems || cartItems.length === 0) {
+      res.status(404).json({ message: "Cart is empty" });
+      return;
+    }
 
-//     if (!cartDocs || cartDocs.length === 0) {
-//       res.status(404).json({ message: "Cart is empty" });
-//       return;
-//     }
+    const allItems: any[] = [];
 
-//     let allItems: any[] = [];
+    cartItems.forEach(item => {
+      const { productId: product, ...rest } = item;
+      const flatItem = {
+        ...rest,
+        ...(product || {}),
+      };
 
-//     cartDocs.forEach(cart => {
-//       (cart.items || []).forEach(item => {
-//         const { productId: product, ...rest } = item;
-//         const flatItem = {
-//           ...rest,
-//           ...(product || {}),
-//         };
+      const rate = Number(flatItem.unitPrice || 0);
+      const qty = Number(flatItem.QTY || 0);
+      const discount = Number(flatItem.discount || 0);
+      const selectVAT = flatItem.VATstatus === "withVAT";
 
-//         const rate = Number(flatItem.unitPrice || 0);
-//         const qty = Number(flatItem.QTY || 0);
-//         const discount = Number(flatItem.discount || 0);
+      // Always calculate VAT from ORIGINAL rate (not updateRate)
+      const VATtax = (rate * qty * 5) / 100;
 
-//         const subtotal = (rate - (rate * 5) / 100) * qty - discount;
+      // total depends on selectVAT
+      const total = selectVAT
+        ? (rate * qty) - discount // With VAT => use full rate
+        : ((rate - (rate * 5) / 100) * qty) - discount; // Without VAT => remove VAT from rate
 
-//         const VAT = (rate * qty * 5) / 100;
+      // Final net total
+      const netTotal = selectVAT ? total + VATtax : total;
 
-//         let NetTotal = 0;
+      allItems.push({
+        productName: (product as any)?.productName,
+        qty,
+        rate,
+        discount,
+        VAT: VATtax,
+        total,
+        netTotal,
+      });
+    });
 
-//         if (flatItem.VATstatus === "withVAT") {
-//           NetTotal = subtotal + VAT;
-//         } else {
-//           NetTotal = subtotal + VAT; 
-//         }
+    const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
 
-//         let total = subtotal;
-//         let netTotal = NetTotal;
-
-//         allItems.push({
-//           ...flatItem,
-//           total,
-//           VAT,
-//           netTotal,
-//         });
-//       });
-//     });
-
-//     const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
-
-//     res.status(200).json({
-//       items: allItems,
-//       grandTotal,
-//     });
-//   } catch (error) {
-//     handleError(res, error);
-//   }
-// };
-
+    res.status(200).json({
+      items: allItems,
+      grandTotal,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
 
 
 
