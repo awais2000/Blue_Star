@@ -9,7 +9,7 @@ import { authenticateToken } from "../middlewares/authMiddleware"
 import { addProduct, deleteProducts, getProductById, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
 import { addCustomer, deleteCustomer, getCustomer, updateCustomer } from "../controllers/customerController";
-import { addProductToCart, createSaleData, deleteFromCart, getProductInCart, } from "../controllers/salesController";
+import { addProductToCart, createSaleData, deleteFromCart, getProductInCart, printSalesData, } from "../controllers/salesController";
 import { deleteRequest } from "../controllers/deleteController";
 import { addPrintConfig, } from "../controllers/receiptController";
 
@@ -45,7 +45,7 @@ export default (app: Application): void => {
 
     app.post('/deleteRequest', deleteRequest);
 
-    // app.post('/printSalesData', printSalesData);
+    app.post('/printSalesData', printSalesData);
 
     app.put('/addPrintConfig/:id', addPrintConfig);
 
