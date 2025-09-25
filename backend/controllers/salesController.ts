@@ -8,45 +8,6 @@ import TempProducts from "../models/tempProducts";
 
 
 
-// export const addProductToCart = async (req: express.Request, res: express.Response): Promise<void> => {
-//   try {
-//     const { productId, QTY, unitPrice, VATstatus } = req.body;
-
-//     if (!items || !Array.isArray(items) || items.length === 0) {
-//       res.status(400).json({ message: "Items array is required" });
-//       return;
-//     }
-
-//     // Validate each item
-//     for (const item of items) {
-//       const requiredFields = ["productId", "QTY", "unitPrice", "VATstatus"];
-//       const missingFields = requiredFields.filter((field) => !item[field]);
-
-//       if (missingFields.length > 0) {
-//         res.status(400).json({ message: `Missing in item: ${missingFields.join(", ")}` });
-//         return;
-//       }
-//     }
-
-//     // Find or create cart
-//     let cart = await TempProducts.findOne();
-//     if (!cart) {
-//       cart = await TempProducts.create({ items });
-//     } else {
-//       cart.items.push(...items); 
-//       await cart.save();
-//     }
-
-//     // Populate response
-//     const populatedCart = await TempProducts.findById(cart._id)
-//       .populate("items.productId")
-//       .lean();
-
-//     res.status(200).json(populatedCart);
-//   } catch (error) {
-//     handleError(res, error);
-//   }
-// };
 export const addProductToCart = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productId, QTY, unitPrice, discount, VATstatus } = req.body;
@@ -154,6 +115,30 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
     res.status(200).json({
       items: allItems,
       grandTotal,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+
+
+
+export const deleteFromCart = async (req: express.Request, res: express.Response): Promise<void> => {
+  try {
+    const id = req.params.id;
+
+    const deleteProduct = await TempProducts.findOneAndDelete({ productId: id });
+
+    if (!deleteProduct) {
+      res.status(404).json({ message: "Product not found in cart" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product removed from cart successfully",
+      ...deleteProduct.toObject(),
     });
   } catch (error) {
     handleError(res, error);
