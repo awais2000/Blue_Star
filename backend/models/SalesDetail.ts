@@ -1,53 +1,48 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
-import { IProducts } from "../models/Products";
 
-
-export interface IInvoiceItem {
-  productId: mongoose.Types.ObjectId; 
+export interface IInvoiceProduct {
+  productId: mongoose.Types.ObjectId;
+  productName: string;
   qty: number;
-  unitPrice: number;
+  rate: number;
+  discount: number;
+  VAT: number;
+  total: number;
+  netTotal: number;
 }
 
 export interface ISalesDetail extends Document {
-    productId: mongoose.Types.ObjectId | IProducts; 
-    customerName:  string;
-    customerContact: string;
-    unitPrice:  number;
-    discount: number;
-    date: Date,
-    QTY: number,
-    invoiceNo:  number;
-    total: number;
-    VAT: number;
-    netTotal: number;
-    invoice: string;
-    status: "Y" | "N";
-    createdAt: Date;
-    items: IInvoiceItem[];
-};
-
-
+  customerName: string;
+  customerContact: string;
+  products: IInvoiceProduct[];
+  grandTotal: number;
+  invoiceNo: number;
+  invoice: string;
+  date: Date;
+  status: "Y" | "N";
+  createdAt: Date;
+}
 
 const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
   {
-    items: [
-    {
-      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products" },
-      qty: Number,
-      unitPrice: Number
-    }
-  ],
-    customerName: { type: String, trim: true },
-    customerContact: { type: String },
-    unitPrice: { type: Number, required: true },
-    discount: { type: Number },
-    date: { type: Date, required: true },
-    QTY: { type: Number, required: true },
-    invoiceNo: { type: Number, required: true, ref: "Invoice" },
-    total: { type: Number, required: true },
-    VAT: { type: Number, required: true },
-    netTotal: { type: Number, required: true },
-    invoice: { type: String, required: true },
+    customerName: { type: String, required: true, trim: true },
+    customerContact: { type: String, required: true, trim: true },
+    products: [
+      {
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
+        productName: { type: String, required: true },
+        qty: { type: Number, required: true },
+        rate: { type: Number, required: true },
+        discount: { type: Number, default: 0 },
+        VAT: { type: Number, required: true },
+        total: { type: Number, required: true },
+        netTotal: { type: Number, required: true },
+      },
+    ],
+    grandTotal: { type: Number, required: true },
+    invoiceNo: { type: Number, required: true, unique: true },
+    invoice: {type: String, required: true, trim: true },
+    date: { type: Date, default: Date.now },
     status: {
       type: String,
       enum: ["Y", "N"],
