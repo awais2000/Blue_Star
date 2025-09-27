@@ -152,7 +152,7 @@ export const createSaleData = async (
   res: express.Response
 ): Promise<void> => {
   try {
-    const { customerName, customerContact, grandTotal } = req.body;
+    const { customerName, customerContact, grandTotal, date } = req.body;
 
     const tempProducts = await TempProducts.find()
       .populate("productId")
@@ -204,7 +204,7 @@ export const createSaleData = async (
       grandTotal,
       invoiceNo: currentInvoiceNo,
       invoice: `${currentInvoiceNo}`,
-      date: new Date(),
+      date: date,
     });
 
     invoiceNoNew = currentInvoiceNo;
@@ -266,7 +266,6 @@ export const printSalesData = async (
       })
       .join("");
 
-    // Calculate sumOfTotal and sumOfVat
     const sumOfTotal = Number(
       (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0).toFixed(2)
     );
@@ -455,7 +454,7 @@ export const printSalesData = async (
         </tr>
         <tr>
           <td><strong>Date</strong></td>
-          <td>${new Date(date).toLocaleDateString()}</td>
+          <td>${date.toLocaleString().slice(0, 9)}</td>
         </tr>
         <tr>
           <td><strong>Customer</strong></td>
@@ -498,9 +497,6 @@ export const printSalesData = async (
           <td>${grandTotal} AED</td>
         </tr>
       </table>
- 
-     
-   
     </div>
   </body>
 </html>`;
@@ -624,7 +620,7 @@ export const printSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${new Date(date).toLocaleDateString()}</p>
+                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
@@ -966,7 +962,7 @@ export const getSalesData = async (
         </tr>
         <tr>
           <td><strong>Date</strong></td>
-          <td>${new Date(date).toLocaleDateString()}</td>
+          <td>${date.toLocaleString().slice(0, 9)}</td>
         </tr>
         <tr>
           <td><strong>Customer</strong></td>
@@ -1135,7 +1131,7 @@ export const getSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${new Date(date).toLocaleDateString()}</p>
+                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
