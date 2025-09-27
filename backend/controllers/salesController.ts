@@ -710,21 +710,37 @@ export const getSalesData = async (
     const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const offset: number = (page - 1) * limit;
 
-    const toDate: Date = req.query.toDate ? new Date(parseInt(req.query.toDate as string)) : new Date();
-    const fromDate: Date = req.query.fromDate ? new Date(parseInt(req.query.fromDate as string)) : new Date(0);
     const printType: string = req.query.printType as string;
 
-    if (isNaN(toDate.getTime()) || isNaN(fromDate.getTime())) {
-      res.status(400).send({ message: "Invalid date parameters" });
-      return;
+
+    // --- Date Parsing Fix ---
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+
+    if (req.query.fromDate) {
+      const from = new Date(req.query.fromDate as string);
+      if (!isNaN(from.getTime())) {
+        from.setHours(0, 0, 0, 0); // start of day
+        fromDate = from;
+      }
+    }
+
+    if (req.query.toDate) {
+      const to = new Date(req.query.toDate as string);
+      if (!isNaN(to.getTime())) {
+        to.setHours(23, 59, 59, 999); // end of day
+        toDate = to;
+      }
     }
 
     const dateFilter: any = {};
-    if (req.query.fromDate) dateFilter.$gte = fromDate;
-    if (req.query.toDate) dateFilter.$lte = toDate;
-
+    if (fromDate) dateFilter.$gte = fromDate;
+    if (toDate) dateFilter.$lte = toDate;
+    
     const query: any = {};
-    if (Object.keys(dateFilter).length > 0) query.date = dateFilter;
+    if (Object.keys(dateFilter).length > 0) {
+      query.date = dateFilter;
+    }
 
     const getAllInvoices = await SalesDetail.find(query)
       .populate("products.productId")
@@ -740,48 +756,42 @@ export const getSalesData = async (
 
     // --- Data Transformation ---
     const transformedInvoices = getAllInvoices.map(invoice => {
-    const products = (invoice.products || [])
+      const products = (invoice.products || [])
         .map(product => {
-            if (!product) return null;
+          if (!product) return null;
+          const productId = (product.productId as any)?._id || product.productId;
 
-            const productId = (product.productId as any)?._id || product.productId;
-
-            return {
-                productId: productId,
-                productName: product.productName,
-                qty: product.qty,
-                rate: product.rate,
-                discount: product.discount,
-                VAT: product.VAT,
-                total: product.total, 
-                netTotal: product.netTotal 
-            };
+          return {
+            productId,
+            productName: product.productName,
+            qty: product.qty,
+            rate: product.rate,
+            discount: product.discount,
+            VAT: product.VAT,
+            total: product.total,
+            netTotal: product.netTotal
+          };
         })
         .filter(product => product !== null);
 
-    const sumOfVat = Number(products.reduce((sum, product) => {
-        return sum + Number(product.VAT || 0);
-    }, 0).toFixed(2));
+      const sumOfVat = Number(products.reduce((sum, product) => sum + Number(product.VAT || 0), 0).toFixed(2));
+      const sumOfTotal = Number(products.reduce((sum, product) => sum + Number(product.total || 0), 0).toFixed(2));
 
-    const sumOfTotal = Number(products.reduce((sum, product) => {
-        return sum + Number(product.total || 0);
-    }, 0).toFixed(2)); 
-
-    return {
+      return {
         customerName: invoice.customerName,
         customerContact: invoice.customerContact,
-        products: products,
+        products,
         grandTotal: invoice.grandTotal,
-        sumOfVat: sumOfVat,
-        sumOfTotal: sumOfTotal, // <-- This now holds the correctly rounded value
+        sumOfVat,
+        sumOfTotal,
         invoiceNo: invoice.invoiceNo,
         invoice: invoice.invoice,
         date: invoice.date,
         status: invoice.status,
         _id: invoice._id,
         createdAt: invoice.createdAt
-    };
-});
+      };
+    });
 
     // --- HTML Generation and Response ---
 
@@ -1220,53 +1230,24 @@ export const searchSalesData = async (
 ): Promise<void> => {
   try {
     const query: any = {};
+    const search = req.query.search as string;
 
-    // Invoice number
-    if (req.query.invoiceNo) {
-      query.invoiceNo = parseInt(req.query.invoiceNo as string, 10);
-    }
+    if (search) {
+      const numericSearch = Number(search);
 
-    // Customer name (case-insensitive partial match)
-    if (req.query.customerName) {
-      query.customerName = {
-        $regex: new RegExp(req.query.customerName as string, "i"),
-      };
-    }
+      query.$or = [
+        // Invoice number (if numeric)
+        !isNaN(numericSearch) ? { invoiceNo: numericSearch } : null,
 
-    // Grand total exact match
-    if (req.query.grandTotal) {
-      query.grandTotal = Number(req.query.grandTotal);
-    }
+        // Customer name (case-insensitive)
+        { customerName: { $regex: new RegExp(search, "i") } },
 
-    // Single date search (full day)
-    if (req.query.date) {
-      const searchDate = new Date(req.query.date as string);
-      if (!isNaN(searchDate.getTime())) {
-        const startOfDay = new Date(searchDate.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(searchDate.setHours(23, 59, 59, 999));
-        query.date = { $gte: startOfDay, $lte: endOfDay };
-      }
-    }
+        // Grand total (if numeric)
+        !isNaN(numericSearch) ? { grandTotal: numericSearch } : null,
 
-    // Date range search
-    if (req.query.fromDate || req.query.toDate) {
-      const fromDate = req.query.fromDate
-        ? new Date(req.query.fromDate as string)
-        : new Date(0);
-      const toDate = req.query.toDate
-        ? new Date(req.query.toDate as string)
-        : new Date();
-
-      if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
-        query.date = { $gte: fromDate, $lte: toDate };
-      }
-    }
-
-    // Product name (nested)
-    if (req.query.productName) {
-      query["products.productName"] = {
-        $regex: new RegExp(req.query.productName as string, "i"),
-      };
+        // Product name (nested search)
+        { "products.productName": { $regex: new RegExp(search, "i") } },
+      ].filter(Boolean); // remove nulls
     }
 
     const salesData = await SalesDetail.find(query)
@@ -1275,7 +1256,9 @@ export const searchSalesData = async (
       .lean();
 
     if (!salesData || salesData.length === 0) {
-      res.status(404).json({ success: false, message: "No matching sales found" });
+      res
+        .status(404)
+        .json({ success: false, message: "No matching sales found" });
       return;
     }
 
@@ -1308,9 +1291,12 @@ export const searchSalesData = async (
     res.status(200).json(formatted);
   } catch (error) {
     console.error("Error searching sales data:", error);
-    res.status(500).json({ success: false, message: "An unexpected error occurred." });
+    res
+      .status(500)
+      .json({ success: false, message: "An unexpected error occurred." });
   }
 };
+
 
 
 export const getSalesDataById = async (
@@ -1320,7 +1306,6 @@ export const getSalesDataById = async (
   try {
     // 1. Get ID (which is the invoiceNo) and printType
     const invoiceNo = req.params.id;
-    const printType: string = req.query.printType as string;
 
     if (!invoiceNo) {
       res.status(400).send({ message: "Please provide the Invoice Number!" });
