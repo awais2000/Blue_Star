@@ -1326,6 +1326,17 @@ export const getSalesDataById = async (
       res.status(400).send({ message: "Please provide the Invoice Number!" });
       return;
     }
+
+    const latestConfig = await PrinterConfigurationModel.findOne({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!latestConfig?.printType) {
+      res.status(404).json({ message: "Print Type not found!" });
+      return;
+    }
+
+    console.log(latestConfig.printType);
     
     // --- DATABASE QUERY ---
     const invoiceData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo }) // Cast to any if SalesDetail model isn't fully typed for Mongoose
@@ -1383,7 +1394,7 @@ export const getSalesDataById = async (
     };
 
 
-    if (printType === 'thermal' || printType === 'A4') {
+    if (latestConfig.printType === 'thermal' || latestConfig.printType === 'A4') {
       res.setHeader('Content-Type', 'text/html');
 
       const {
@@ -1412,7 +1423,7 @@ export const getSalesDataById = async (
       const config = businessConfig as any;
       const dateString = date instanceof Date ? date.toLocaleString().slice(0, 9) : new Date(date).toLocaleString().slice(0, 9);
       
-      if (printType === "thermal") {
+      if (latestConfig.printType === "thermal") {
         htmlTemplate = `<!DOCTYPE html>
       <html lang="en">
         <head>
@@ -1508,7 +1519,7 @@ export const getSalesDataById = async (
         </body>
       </html>`;
       }
-      else if (printType === 'A4') {
+      else if (latestConfig.printType === 'A4') {
         htmlTemplate = `
           <!DOCTYPE html>
           <html lang="en">
