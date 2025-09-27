@@ -10,7 +10,7 @@ import PrinterConfigurationModel from "../models/printerConfiguration";
 
 const businessConfig = {
     rcpt_name: 'Blue Star Electronics Repair L.L.C',
-    rcpt_address: 'Baniyas East 9 Near Shahab Baniyas Cafeteria',
+    rcpt_address: 'Baniyas East 9 Near Shabab Baniyas Cafeteria',
     contactString: '+971554831700',
 };
 
@@ -228,7 +228,6 @@ export const printSalesData = async (
   res: express.Response
 ): Promise<void> => {
   try {
-    
     let invoiceNo = invoiceNoNew;
     console.log(invoiceNo);
 
@@ -431,24 +430,30 @@ export const printSalesData = async (
     <div class="thermal">
       <!-- Header -->
       <div class="header">
-        <img src="/uploads/bluestarlogo.jpg" alt="Bluestar Logo" />
         <h3>${businessConfig.rcpt_name}</h3>
         <p>${businessConfig.rcpt_address}</p>
-        <p><strong>Ph:</strong> ${businessConfig.contactString}</p>
+        <p><strong> </strong> ${businessConfig.contactString}</p>
       </div>
  
       <!-- Info -->
       <table class="info">
         <tr>
-          <td><strong>Date:</strong></td>
-          <td>${date}</td>
+          <td><strong>TRN:</strong></td>
+          <td>104155043300003</td>
         </tr>
         <tr>
-          <td><strong>Customer:</strong></td>
+          <td><strong>Invoice#</strong></td>
+          <td>BS-${invoiceNo}</td>
+        </tr>
+        <tr>
+          <td><strong>Date</strong></td>
+          <p><strong> </strong> ${businessConfig.contactString}</tr>
+        <tr>
+          <td><strong>Customer</strong></td>
           <td>${customerName}</td>
         </tr>
         <tr>
-          <td><strong>Contact:</strong></td>
+          <td><strong>Contact#</strong></td>
           <td>${customerContact}</td>
         </tr>
       </table>
@@ -459,8 +464,8 @@ export const printSalesData = async (
           <tr>
             <th style="width:35%;">Item</th>
             <th style="width:15%;">Qty</th>
-            <th style="width:20%;">Rate</th>
-            <th style="width:15%;">VAT</th>
+            <th style="width:20%;">Price</th>
+            <th style="width:15%;">VAT 5%</th>
             <th style="width:25%;">Total</th>
           </tr>
         </thead>
@@ -472,15 +477,13 @@ export const printSalesData = async (
       <!-- Totals -->
       <table class="totals">
         <tr>
-          <td>Grand Total:</td>
-          <td>${grandTotal}</td>
+          <td>Grand Total</td>
+          <td>${grandTotal} AED</td>
         </tr>
       </table>
  
       <!-- Footer -->
       <div class="footer">
-        <strong>Thank you for your business!</strong>
-        <p>Software developed with ❤️ by Hamza Amin</p>
       </div>
     </div>
   </body>
@@ -645,7 +648,6 @@ export const printSalesData = async (
     <!-- Header -->
     <div class="invoice-header">
       <!-- BlueStar Logo -->
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Blue_Star_Limited_logo.svg/512px-Blue_Sta… alt="BlueStar Logo" />
       <h1>${businessConfig.rcpt_name}</h1>
       <p>${businessConfig.rcpt_address}</p>
       <p>${businessConfig.contactString}</p>
@@ -654,12 +656,14 @@ export const printSalesData = async (
     <!-- Customer + Invoice Info -->
     <div class="info-section">
       <div class="info-block">
-        <p><strong>Customer:</strong> ${customerName}</p>
-        <p><strong>Contact:</strong> ${customerContact}</p>
+        <p><strong>Customer</strong> ${customerName}</p>
+        <p><strong>Contact#</strong> ${customerContact}</p>
       </div>
       <div class="info-block">
-        <p><strong>Date:</strong> ${date}</p>
-        <p><strong>Invoice #:</strong> ${invoiceNo}</p>
+        <p><strong>Date</strong> ${date}</p>
+        <p><strong>Invoice#</strong> BS-${invoiceNo}</p>
+        <p><strong>TRN:</strong>104155043300003</p>
+
       </div>
     </div>
  
@@ -669,8 +673,8 @@ export const printSalesData = async (
         <tr>
           <th style="width:40%;">Product</th>
           <th style="width:15%;">Quantity</th>
-          <th style="width:15%;">Rate</th>
-          <th style="width:15%;">VAT</th>
+          <th style="width:15%;">Price</th>
+          <th style="width:15%;">VAT 5%</th>
           <th style="width:15%;">Total</th>
         </tr>
       </thead>
@@ -680,15 +684,13 @@ export const printSalesData = async (
       <tfoot>
         <tr>
           <td colspan="4">Grand Total</td>
-          <td>${grandTotal}</td>
+          <td>${grandTotal} AED</td>
         </tr>
       </tfoot>
     </table>
  
     <!-- Footer -->
     <div class="invoice-footer">
-      <strong>Software Developed with love by</strong>
-      <p>Hamza Amin</p>
     </div>
   </div>
 </body>
@@ -707,104 +709,7 @@ export const printSalesData = async (
   }
 };
 
-// export const getSalesData = async (
-//   req: express.Request,
-//   res: express.Response
-// ): Promise<void> => {  
-//   try {
-//     const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
-//     const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-//     const offset: number = (page - 1) * limit;
-    
-//     const toDate: Date = req.query.toDate ? new Date(parseInt(req.query.toDate as string)) : new Date();
-//     const fromDate: Date = req.query.fromDate ? new Date(parseInt(req.query.fromDate as string)) : new Date(0);
-//     const printType: string = req.query.printType as string;
 
-//     if (isNaN(toDate.getTime()) || isNaN(fromDate.getTime())) {
-//       res.status(400).send({ message: "Invalid date parameters" });
-//       return;
-//     }
-    
-//     const dateFilter: any = {};
-//     if (req.query.fromDate) dateFilter.$gte = fromDate;
-//     if (req.query.toDate) dateFilter.$lte = toDate;
-    
-//     const query: any = {};
-//     if (Object.keys(dateFilter).length > 0) query.date = dateFilter;
-    
-//     const getAllInvoices = await SalesDetail.find(query)
-//       .populate("products.productId")
-//       .sort({ date: 1 })
-//       .lean()
-//       .skip(offset)
-//       .limit(limit);
-
-//     if (!getAllInvoices || getAllInvoices.length === 0) {
-//       res.status(404).send({ message: "No invoices found!" });
-//       return;
-//     }
-
-//     const transformedInvoices = getAllInvoices.map(invoice => {
-//       // Check if invoice.products exists and is an array
-//       if (!invoice.products || !Array.isArray(invoice.products)) {
-//         return {
-//           success: true,
-//           message: "Sales data retrieved successfully",
-//           customerName: invoice.customerName,
-//           customerContact: invoice.customerContact,
-//           products: [], // Empty array if no products
-//           grandTotal: invoice.grandTotal,
-//           invoiceNo: invoice.invoiceNo,
-//           invoice: invoice.invoice,
-//           date: invoice.date,
-//           status: invoice.status,
-//           _id: invoice._id,
-//           createdAt: invoice.createdAt
-//         };
-//       }
-
-//       return {
-//         success: true,
-//         message: "Sales data retrieved successfully",
-//         customerName: invoice.customerName,
-//         customerContact: invoice.customerContact,
-//         products: invoice.products.map(product => {
-//           // Check if product exists and has required fields
-//           if (!product) return null;
-          
-//           return {
-//             productId: product.productId?._id || product.productId, // Use _id if populated, otherwise original ID
-//             productName: product.productName,
-//             qty: product.qty,
-//             rate: product.rate,
-//             discount: product.discount,
-//             VAT: product.VAT,
-//             total: product.total,
-//             netTotal: product.netTotal
-//           };
-//         }).filter(product => product !== null), // Remove any null products
-//         grandTotal: invoice.grandTotal,
-//         invoiceNo: invoice.invoiceNo,
-//         invoice: invoice.invoice,
-//         date: invoice.date,
-//         status: invoice.status,
-//         _id: invoice._id,
-//         createdAt: invoice.createdAt
-//       };
-//     });
-
-//     res.status(200).send(transformedInvoices);
-  
-//   } catch (error) {
-//     handleError(res, error);
-//   }
-// }
-
-
-
-// Assuming express and other imports are available
-// import * as express from 'express'; 
-// Assuming SalesDetail, handleError, and businessConfig are defined elsewhere
 
 export const getSalesData = async (
   req: express.Request,
@@ -815,7 +720,6 @@ export const getSalesData = async (
     const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const offset: number = (page - 1) * limit;
 
-    // Dates are expected as Unix timestamps (milliseconds)
     const toDate: Date = req.query.toDate ? new Date(parseInt(req.query.toDate as string)) : new Date();
     const fromDate: Date = req.query.fromDate ? new Date(parseInt(req.query.fromDate as string)) : new Date(0);
     const printType: string = req.query.printType as string;
@@ -826,7 +730,6 @@ export const getSalesData = async (
     }
 
     const dateFilter: any = {};
-    // Only apply the date filter if the query parameter was actually provided
     if (req.query.fromDate) dateFilter.$gte = fromDate;
     if (req.query.toDate) dateFilter.$lte = toDate;
 
@@ -847,40 +750,48 @@ export const getSalesData = async (
 
     // --- Data Transformation ---
     const transformedInvoices = getAllInvoices.map(invoice => {
-      // Safely access product data
-      const products = (invoice.products || [])
+    const products = (invoice.products || [])
         .map(product => {
-          if (!product) return null;
+            if (!product) return null;
 
-          // Populate logic ensures product.productId is the populated object or just the ID
-          const productId = (product.productId as any)?._id || product.productId;
+            const productId = (product.productId as any)?._id || product.productId;
 
-          return {
-            productId: productId,
-            productName: product.productName,
-            qty: product.qty,
-            rate: product.rate,
-            discount: product.discount,
-            VAT: product.VAT,
-            total: product.total, // Item total before discount
-            netTotal: product.netTotal // Final item total after all calculations
-          };
+            return {
+                productId: productId,
+                productName: product.productName,
+                qty: product.qty,
+                rate: product.rate,
+                discount: product.discount,
+                VAT: product.VAT,
+                total: product.total, 
+                netTotal: product.netTotal 
+            };
         })
         .filter(product => product !== null);
 
-      return {
+    const sumOfVat = Number(products.reduce((sum, product) => {
+        return sum + Number(product.VAT || 0);
+    }, 0).toFixed(2));
+
+    const sumOfTotal = Number(products.reduce((sum, product) => {
+        return sum + Number(product.total || 0);
+    }, 0).toFixed(2)); 
+
+    return {
         customerName: invoice.customerName,
         customerContact: invoice.customerContact,
         products: products,
         grandTotal: invoice.grandTotal,
+        sumOfVat: sumOfVat,
+        sumOfTotal: sumOfTotal, // <-- This now holds the correctly rounded value
         invoiceNo: invoice.invoiceNo,
         invoice: invoice.invoice,
         date: invoice.date,
         status: invoice.status,
         _id: invoice._id,
         createdAt: invoice.createdAt
-      };
-    });
+    };
+});
 
     // --- HTML Generation and Response ---
 
@@ -894,11 +805,11 @@ export const getSalesData = async (
           invoiceNo = "",
           date = "",
           grandTotal = 0,
-          products = []
+          products = [],
+          sumOfVat = 0,
+          sumOfTotal = 0
         } = invoice;
 
-        // Build product rows
-        // NOTE: Using netTotal for the final column
         const itemRows = products.map(p => `
           <tr>
             <td style="text-align: left;">${p.productName || ''}</td>
@@ -1074,24 +985,29 @@ export const getSalesData = async (
     <div class="thermal">
       <!-- Header -->
       <div class="header">
-        <img src="/uploads/bluestarlogo.jpg" alt="Bluestar Logo" />
         <h3>${businessConfig.rcpt_name}</h3>
         <p>${businessConfig.rcpt_address}</p>
-        <p><strong>Ph:</strong> ${businessConfig.contactString}</p>
+        <p><strong> </strong> ${businessConfig.contactString}</p>
+        <p><strong>TAX INVOICE</strong></p>
+        <p><strong>TRN: </strong>104155043300003</p>
       </div>
  
       <!-- Info -->
       <table class="info">
         <tr>
-          <td><strong>Date:</strong></td>
-          <td>${date}</td>
+          <td><strong>Invoice#</strong></td>
+          <td>BS-${invoiceNo}</td>
         </tr>
         <tr>
-          <td><strong>Customer:</strong></td>
+          <td><strong>Date</strong></td>
+          <td>${new Date(date).toLocaleDateString()}</td>
+        </tr>
+        <tr>
+          <td><strong>Customer</strong></td>
           <td>${customerName}</td>
         </tr>
         <tr>
-          <td><strong>Contact:</strong></td>
+          <td><strong>Contact#</strong></td>
           <td>${customerContact}</td>
         </tr>
       </table>
@@ -1102,7 +1018,7 @@ export const getSalesData = async (
           <tr>
             <th style="width:35%;">Item</th>
             <th style="width:15%;">Qty</th>
-            <th style="width:20%;">Rate</th>
+            <th style="width:20%;">Price</th>
             <th style="width:15%;">VAT</th>
             <th style="width:25%;">Total</th>
           </tr>
@@ -1115,21 +1031,27 @@ export const getSalesData = async (
       <!-- Totals -->
       <table class="totals">
         <tr>
-          <td>Grand Total:</td>
-          <td>${grandTotal}</td>
+          <td>Total</td>
+          <td>${sumOfTotal} AED</td>
+        </tr>
+        <tr>
+          <td>Total VAT</td>
+          <td>${sumOfVat} AED</td>
+        </tr>
+        <tr>
+          <td>Grand Total</td>
+          <td>${grandTotal} AED</td>
         </tr>
       </table>
  
       <!-- Footer -->
       <div class="footer">
-        <strong>Thank you for your business!</strong>
-        <p>Software developed with ❤️ by Hamza Amin</p>
       </div>
     </div>
   </body>
 </html>`;
         }
-        // --- A4 Template (No changes) ---
+        // --- A4 Template  ---
         else if (printType === 'A4') {
           htmlTemplate = `
             <!DOCTYPE html>
@@ -1237,19 +1159,19 @@ export const getSalesData = async (
             <body>
               <div class="a4">
                 <div class="invoice-header">
-                  <img src="/uploads/bluestarlogo.jpg" alt="Bluestar Logo" />
                   <h1>${(businessConfig as any).rcpt_name}</h1>
                   <p>${(businessConfig as any).rcpt_address}</p>
                   <p>${(businessConfig as any).contactString}</p>
                 </div>
                 <div class="info-section">
                   <div class="info-block">
-                    <p><strong>Customer:</strong> ${customerName}</p>
-                    <p><strong>Contact:</strong> ${customerContact}</p>
+                    <p><strong>Customer</strong> ${customerName}</p>
+                    <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date:</strong> ${new Date(date).toLocaleDateString()}</p>
-                    <p><strong>Invoice #:</strong> ${invoiceNo}</p>
+                    <p><strong>Date</strong> ${new Date(date).toLocaleDateString()}</p>
+                    <p><strong>Invoice#</strong> BS-${invoiceNo}</p>
+                    <p><strong>TRN:</strong>104155043300003</p>
                   </div>
                 </div>
                 <table class="items-table">
@@ -1257,24 +1179,26 @@ export const getSalesData = async (
                     <tr>
                       <th style="width:40%;">Product</th>
                       <th style="width:15%;">Quantity</th>
-                      <th style="width:15%;">Rate</th>
-                      <th style="width:15%;">VAT</th>
+                      <th style="width:15%;">Price</th>
+                      <th style="width:15%;">VAT 5%</th>
                       <th style="width:15%;">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${itemRows}
                   </tbody>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${sumOfVat} AED</td>
+                    </tr>
                   <tfoot>
                     <tr>
                       <td colspan="4">Grand Total</td>
-                      <td>${grandTotal}</td>
+                      <td>${grandTotal} AED</td>
                     </tr>
                   </tfoot>
                 </table>
                 <div class="invoice-footer">
-                  <strong>Software Developed with ❤️ by</strong>
-                  <p>Hamza Amin</p>
                 </div>
               </div>
             </body>
@@ -1285,12 +1209,10 @@ export const getSalesData = async (
         return htmlTemplate;
       });
 
-      // Send multiple invoices in one HTML doc, separated by a page break for printing
       res.status(200).send(htmlInvoices.join("<div style='page-break-after:always;'></div>"));
-      return; // Add return to prevent falling through
+      return; 
     }
 
-    // Default response for JSON data if no printType is specified or it's not 'thermal'/'A4'
     res.status(200).json({
       success: true,
       message: "Sales data retrieved successfully",
