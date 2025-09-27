@@ -5,6 +5,7 @@ import SalesDetail from "../models/SalesDetail"
 import { handleError } from "../utils/errorHandler";
 import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
+import { formatCurrency } from "../utils/priceFormat";
 
 
 
@@ -254,33 +255,47 @@ export const printSalesData = async (
 
 
 
-    const itemRows = (getSalesData.products || [])
-      .map((item: any) => {
-        // Apply toFixed(2) to all currency-related fields for consistent display
-        const itemRate = Number(item.rate || 0).toFixed(2);
-        const vatAmount = Number(item.VAT || 0).toFixed(2);
-        const itemTotal = Number(item.total || 0).toFixed(2);
-        const itemNetTotal = Number(item.netTotal || 0).toFixed(2);
-        
-        return `
-          <tr>
-            <td>${item.productName}</td>
-            <td style="text-align:right;">${item.qty}</td>
-            <td style="text-align:right;">${itemRate}</td>
-            <td style="text-align:right;">${vatAmount}</td>
-            <td style="text-align:right;">${itemNetTotal}</td>
-          </tr>
-        `;
-      })
-      .join("");
+    // ... (The rest of the controller remains the same up to here)
 
-    // The sum calculations below are already correct since they use toFixed(2)
-    const sumOfTotal = Number(
-      (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0).toFixed(2)
-    );
-    const sumOfVat = Number(
-      (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.VAT || 0), 0).toFixed(2)
-    );
+// --- FIX START: Apply formatCurrency to item rows ---
+const itemRows = (getSalesData.products || [])
+  .map((item: any) => {
+    // Apply formatCurrency to all currency fields
+    const itemRate = formatCurrency(item.rate);
+    const vatAmount = formatCurrency(item.VAT);
+    const itemTotal = formatCurrency(item.total);
+    const itemNetTotal = formatCurrency(item.netTotal);
+    
+    // Note: item.qty usually doesn't need currency formatting unless it can be a decimal like 1.5
+    
+    return `
+      <tr>
+        <td>${item.productName}</td>
+        <td style="text-align:right;">${item.qty}</td>
+        <td style="text-align:right;">${itemRate}</td>
+        <td style="text-align:right;">${vatAmount}</td>
+        <td style="text-align:right;">${itemNetTotal}</td>
+      </tr>
+    `;
+  })
+  .join("");
+
+// --- FIX B: Apply formatCurrency to the totals variables ---
+// The sum calculations below still use toFixed(2) to ensure precise calculation, 
+// but we apply formatCurrency when defining the final output variables.
+
+const sumOfTotal = formatCurrency(
+  (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0)
+);
+
+const sumOfVat = formatCurrency(
+  (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.VAT || 0), 0)
+);
+
+// --- FIX C: Apply formatCurrency to grandTotal and invoiceNo (if applicable) ---
+const formattedGrandTotal = formatCurrency(grandTotal);
+
+// ... (The rest of the controller)
     // --- FIX END ---
     
     let invoiceHtml = "";
