@@ -15,7 +15,7 @@ import { addPrintConfig, } from "../controllers/receiptController";
 
 
 export default (app: Application): void => {
-    app.post('/addUser', authenticateToken, addUser);
+    app.post('/addUser', addUser);
 
     app.post('/login', login);
 
@@ -47,7 +47,7 @@ export default (app: Application): void => {
 
     app.post('/printSalesData', printSalesData);
 
-    app.put('/addPrintConfig/:id', addPrintConfig);
+    app.post('/addPrintConfig', addPrintConfig);
 
     app.post('/addProductToCart', addProductToCart);
 

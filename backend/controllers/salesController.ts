@@ -277,7 +277,8 @@ export const printSalesData = async (
     let invoiceHtml = "";
 
     if (latestConfig.printType === "thermal") {
-      invoiceHtml = `<!DOCTYPE html>
+      invoiceHtml = `
+      <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />

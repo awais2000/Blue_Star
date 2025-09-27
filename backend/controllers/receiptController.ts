@@ -9,7 +9,7 @@ import TempProducts from "../models/tempProducts";
 
 export const addPrintConfig = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
-    const id = req.params.id; 
+    const id = "68d28dd6fb949099d517d7a6"; 
     const { printType } = req.body;
 
     if (!printType) {
