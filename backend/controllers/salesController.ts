@@ -266,6 +266,14 @@ export const printSalesData = async (
       })
       .join("");
 
+    // Calculate sumOfTotal and sumOfVat
+    const sumOfTotal = Number(
+      (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0).toFixed(2)
+    );
+    const sumOfVat = Number(
+      (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.VAT || 0), 0).toFixed(2)
+    );
+
     let invoiceHtml = "";
 
     if (latestConfig.printType === "thermal") {
@@ -342,11 +350,12 @@ export const printSalesData = async (
  
       .items th {
         font-weight: bold;
-        padding: 3px 0;
+        padding: 3px 4px; /* left-right spacing add kiya */
+        white-space: nowrap; /* text break nahi hoga */
       }
  
       .items td {
-        padding: 3px 0;
+        padding: 3px 4px;
         vertical-align: top;
       }
  
@@ -402,7 +411,7 @@ export const printSalesData = async (
         display: block;
         margin-bottom: 2px;
       }
-
+ 
       .footer p {
         margin: 0;
       }
@@ -433,21 +442,20 @@ export const printSalesData = async (
         <h3>${businessConfig.rcpt_name}</h3>
         <p>${businessConfig.rcpt_address}</p>
         <p><strong> </strong> ${businessConfig.contactString}</p>
+        <p><strong>TAX INVOICE</strong></p>
+        <p><strong>TRN: </strong>104155043300003</p>
       </div>
  
       <!-- Info -->
       <table class="info">
-        <tr>
-          <td><strong>TRN:</strong></td>
-          <td>104155043300003</td>
-        </tr>
         <tr>
           <td><strong>Invoice#</strong></td>
           <td>${invoiceNo}</td>
         </tr>
         <tr>
           <td><strong>Date</strong></td>
-          <p><strong> </strong> ${businessConfig.contactString}</tr>
+          <td>${new Date(date).toLocaleDateString()}</td>
+        </tr>
         <tr>
           <td><strong>Customer</strong></td>
           <td>${customerName}</td>
@@ -465,7 +473,7 @@ export const printSalesData = async (
             <th style="width:35%;">Item</th>
             <th style="width:15%;">Qty</th>
             <th style="width:20%;">Price</th>
-            <th style="width:15%;">VAT 5%</th>
+            <th style="width:15%;">VAT&nbsp;5%</th>
             <th style="width:25%;">Total</th>
           </tr>
         </thead>
@@ -477,14 +485,21 @@ export const printSalesData = async (
       <!-- Totals -->
       <table class="totals">
         <tr>
+          <td>Total</td>
+          <td>${sumOfTotal} AED</td>
+        </tr>
+        <tr>
+          <td>Total VAT</td>
+          <td>${sumOfVat} AED</td>
+        </tr>
+        <tr>
           <td>Grand Total</td>
           <td>${grandTotal} AED</td>
         </tr>
       </table>
  
-      <!-- Footer -->
-      <div class="footer">
-      </div>
+     
+   
     </div>
   </body>
 </html>`;
@@ -492,209 +507,159 @@ export const printSalesData = async (
 
     else if (latestConfig.printType === "A4") {
       invoiceHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>A4 Invoice</title>
-  <style>
-    /* Reset */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
- 
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #f5f7fa;
-      padding: 20px;
-      color: #333;
-    }
- 
-    .a4 {
-      width: 210mm;
-      min-height: 297mm;
-      margin: auto;
-      background: #fff;
-      padding: 30px 35px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      border-radius: 8px;
-    }
- 
-    /* Header */
-    .invoice-header {
-      text-align: center;
-      border-bottom: 3px solid #007bff;
-      padding-bottom: 15px;
-      margin-bottom: 25px;
-    }
- 
-    .invoice-header img {
-      width: 100px;
-      height: auto;
-      margin-bottom: 10px;
-    }
- 
-    .invoice-header h1 {
-      font-size: 28px;
-      color: #007bff;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
- 
-    .invoice-header p {
-      font-size: 14px;
-      color: #555;
-      line-height: 1.5;
-    }
- 
-    /* Customer + Invoice Meta Info */
-    .info-section {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 25px;
-    }
- 
-    .info-block {
-      font-size: 14px;
-      line-height: 1.6;
-    }
- 
-    .info-block strong {
-      display: inline-block;
-      min-width: 80px;
-      color: #222;
-    }
- 
-    /* Items Table */
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
- 
-    .items-table thead {
-      background: #007bff;
-      color: #fff;
-    }
- 
-    .items-table th {
-      padding: 14px 12px; /* thoda zyada spacing */
-      text-align: left;
-      font-weight: 600;
-      letter-spacing: 0.8px; /* extra spacing letters me */
-      font-size: 15px;
-    }
- 
-    .items-table td {
-      border: 1px solid #ddd;
-      padding: 12px 10px;
-      text-align: left;
-    }
- 
-    .items-table tr:nth-child(even) {
-      background: #f9f9f9;
-    }
- 
-    .items-table tfoot td {
-      font-weight: bold;
-      background: #f1f5ff;
-      border-top: 2px solid #007bff;
-    }
- 
-    .items-table tfoot tr td:last-child {
-      text-align: right;
-      color: #007bff;
-      font-size: 15px;
-    }
- 
-    /* Footer */
-    .invoice-footer {
-      text-align: center;
-      margin-top: 40px;
-      font-size: 13px;
-      color: #444;
-    }
- 
-    .invoice-footer strong {
-      display: block;
-      margin-bottom: 6px;
-      color: #000;
-    }
- 
-    /* Print setup */
-    @media print {
-      body {
-        background: none;
-        padding: 0;
-      }
-      .a4 {
-        box-shadow: none;
-        border-radius: 0;
-        width: 210mm;
-        min-height: 297mm;
-      }
-      @page {
-        size: A4;
-        margin: 12mm;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="a4">
-    <!-- Header -->
-    <div class="invoice-header">
-      <!-- BlueStar Logo -->
-      <h1>${businessConfig.rcpt_name}</h1>
-      <p>${businessConfig.rcpt_address}</p>
-      <p>${businessConfig.contactString}</p>
-      <p>TAX INVOICE</p>
-    </div>
- 
-    <!-- Customer + Invoice Info -->
-    <div class="info-section">
-      <div class="info-block">
-        <p><strong>Customer</strong> ${customerName}</p>
-        <p><strong>Contact#</strong> ${customerContact}</p>
-      </div>
-      <div class="info-block">
-        <p><strong>Date</strong> ${date}</p>
-        <p><strong>Invoice#</strong> ${invoiceNo}</p>
-        <p><strong>TRN:</strong>104155043300003</p>
-      </div>
-    </div>
- 
-    <!-- Items Table -->
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th style="width:40%;">Product</th>
-          <th style="width:15%;">Quantity</th>
-          <th style="width:15%;">Price</th>
-          <th style="width:15%;">VAT 5%</th>
-          <th style="width:15%;">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemRows}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4">Grand Total</td>
-          <td>${grandTotal} AED</td>
-        </tr>
-      </tfoot>
-    </table>
- 
-    <!-- Footer -->
-    <div class="invoice-footer">
-    </div>
-  </div>
-</body>
-      </html>`;
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <title>A4 Invoice</title>
+              <style>
+                body {
+                  font-family: "Segoe UI", Arial, sans-serif;
+                  background: #f5f7fa;
+                  padding: 20px;
+                  color: #333;
+                }
+                .a4 {
+                  width: 210mm;
+                  min-height: 297mm;
+                  margin: auto;
+                  background: #fff;
+                  padding: 30px 35px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                  border-radius: 8px;
+                }
+                .invoice-header {
+                  text-align: center;
+                  border-bottom: 3px solid #007bff;
+                  padding-bottom: 15px;
+                  margin-bottom: 25px;
+                }
+                .invoice-header img {
+                  width: 100px;
+                  height: auto;
+                  margin-bottom: 10px;
+                }
+                .invoice-header h1 {
+                  font-size: 28px;
+                  color: #007bff;
+                  margin-bottom: 8px;
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                }
+                .info-section {
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 25px;
+                }
+                .info-block {
+                  font-size: 14px;
+                  line-height: 1.6;
+                }
+                .info-block strong {
+                  display: inline-block;
+                  min-width: 80px;
+                  color: #222;
+                }
+                .items-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 20px;
+                  font-size: 14px;
+                }
+                .items-table thead {
+                  background: #007bff;
+                  color: #fff;
+                }
+                .items-table th {
+                  padding: 14px 12px;
+                  text-align: left;
+                }
+                .items-table td {
+                  border: 1px solid #ddd;
+                  padding: 12px 10px;
+                  text-align: left;
+                }
+                .items-table tr:nth-child(even) {
+                  background: #f9f9f9;
+                }
+                .items-table tfoot td {
+                  font-weight: bold;
+                  background: #f1f5ff;
+                  border-top: 2px solid #007bff;
+                }
+                .items-table tfoot tr td:last-child {
+                  text-align: right;
+                  color: #007bff;
+                }
+                .invoice-footer {
+                  text-align: center;
+                  margin-top: 40px;
+                  font-size: 13px;
+                  color: #444;
+                }
+                .invoice-footer strong {
+                  display: block;
+                  margin-bottom: 6px;
+                  color: #000;
+                }
+                @media print {
+                    .a4 {
+                        box-shadow: none;
+                    }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="a4">
+                <div class="invoice-header">
+                  <h1>${(businessConfig as any).rcpt_name}</h1>
+                  <p>${(businessConfig as any).rcpt_address}</p>
+                  <p>${(businessConfig as any).contactString}</p>
+                  <p><strong>TAX INVOICE</strong></p>
+                  <p><strong>TRN:</strong>104155043300003</p>
+                </div>
+                <div class="info-section">
+                  <div class="info-block">
+                    <p><strong>Customer</strong> ${customerName}</p>
+                    <p><strong>Contact#</strong> ${customerContact}</p>
+                  </div>
+                  <div class="info-block">
+                    <p><strong>Date</strong> ${new Date(date).toLocaleDateString()}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
+                  </div>
+                </div>
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40%;">Product</th>
+                      <th style="width:15%;">Quantity</th>
+                      <th style="width:15%;">Price</th>
+                      <th style="width:15%;">VAT 5%</th>
+                      <th style="width:15%;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemRows}
+                  </tbody>
+                  <tr>
+                      <td colspan="4">Total</td>
+                      <td>${sumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${sumOfVat} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${grandTotal} AED</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <div class="invoice-footer">
+                </div>
+              </div>
+            </body>
+            </html>`;
     }
 
     else {
@@ -822,7 +787,6 @@ export const getSalesData = async (
 
         let htmlTemplate = "";
 
-        // --- Thermal Template (FIXED) ---
         if (printType === "thermal") {
           htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -897,11 +861,12 @@ export const getSalesData = async (
  
       .items th {
         font-weight: bold;
-        padding: 3px 0;
+        padding: 3px 4px; /* left-right spacing add kiya */
+        white-space: nowrap; /* text break nahi hoga */
       }
  
       .items td {
-        padding: 3px 0;
+        padding: 3px 4px;
         vertical-align: top;
       }
  
@@ -1019,7 +984,7 @@ export const getSalesData = async (
             <th style="width:35%;">Item</th>
             <th style="width:15%;">Qty</th>
             <th style="width:20%;">Price</th>
-            <th style="width:15%;">VAT</th>
+            <th style="width:15%;">VAT&nbsp;5%</th>
             <th style="width:25%;">Total</th>
           </tr>
         </thead>
@@ -1044,14 +1009,12 @@ export const getSalesData = async (
         </tr>
       </table>
  
-      <!-- Footer -->
-      <div class="footer">
-      </div>
+     
+   
     </div>
   </body>
 </html>`;
         }
-        // --- A4 Template  ---
         else if (printType === 'A4') {
           htmlTemplate = `
             <!DOCTYPE html>
@@ -1223,7 +1186,6 @@ export const getSalesData = async (
       message: "Sales data retrieved successfully",
       data: transformedInvoices,
     });
-
 
   } catch (error) {
     // Ensure you have a global or local handleError function defined
