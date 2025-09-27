@@ -9,7 +9,7 @@ import { authenticateToken } from "../middlewares/authMiddleware"
 import { addProduct, deleteProducts, getProductById, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
 import { addCustomer, deleteCustomer, getCustomer, updateCustomer } from "../controllers/customerController";
-import { addProductToCart, createSaleData, deleteFromCart, getProductInCart, getSalesData, printSalesData, } from "../controllers/salesController";
+import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails, getProductInCart, getSalesData, getSalesDataById, printSalesData, searchSalesData, } from "../controllers/salesController";
 import { deleteRequest } from "../controllers/deleteController";
 import { addPrintConfig, } from "../controllers/receiptController";
 
@@ -56,4 +56,10 @@ export default (app: Application): void => {
     app.patch('/deleteFromCart/:id', deleteFromCart);
 
     app.get('/getSalesData', getSalesData);
+
+    app.get('/searchSalesData', searchSalesData);
+
+    app.get('/getSalesDataById/:id', getSalesDataById);
+
+    app.get('/deleteFromSaleDetails', deleteFromSaleDetails);
 }
