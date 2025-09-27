@@ -484,7 +484,7 @@ export const printSalesData = async (
                   <th style="width:35%;">Item</th>
                   <th style="width:15%;">Qty</th>
                   <th style="width:20%;">Price</th>
-                  <th style="width:15%;">VAT Amt</th>
+                  <th style="width:15%;">VAT 5%</th>
                   <th style="width:25%;">Total</th>
                 </tr>
               </thead>
@@ -644,7 +644,7 @@ export const printSalesData = async (
                       <th style="width:40%;">Product</th>
                       <th style="width:15%;">Quantity</th>
                       <th style="width:15%;">Price</th>
-                      <th style="width:15%;">VAT Amt</th>
+                      <th style="width:15%;">VAT 5%</th>
                       <th style="width:15%;">Total</th>
                     </tr>
                   </thead>
@@ -994,7 +994,7 @@ export const getSalesData = async (
             <th style="width:35%;">Item</th>
             <th style="width:15%;">Qty</th>
             <th style="width:20%;">Price</th>
-            <th style="width:15%;">VAT Amt</th>
+            <th style="width:15%;">VAT 5%</th>
             <th style="width:25%;">Total</th>
           </tr>
         </thead>
@@ -1154,7 +1154,7 @@ export const getSalesData = async (
                       <th style="width:40%;">Product</th>
                       <th style="width:15%;">Quantity</th>
                       <th style="width:15%;">Price</th>
-                      <th style="width:15%;">VAT Amt</th>
+                      <th style="width:15%;">VAT 5%</th>
                       <th style="width:15%;">Total</th>
                     </tr>
                   </thead>
@@ -1191,12 +1191,9 @@ export const getSalesData = async (
       return; 
     }
 
-    res.status(200).json({
-      data: transformedInvoices,
-    });
+    res.status(200).json(transformedInvoices);
 
   } catch (error) {
-    // Ensure you have a global or local handleError function defined
     handleError(res, error);
   }
 };
@@ -1257,7 +1254,6 @@ export const searchSalesData = async (
       };
     }
 
-    // Fetch data
     const salesData = await SalesDetail.find(query)
       .populate("products.productId")
       .sort({ createdAt: -1 })
@@ -1471,7 +1467,7 @@ export const getSalesDataById = async (
                   <th style="width:35%;">Item</th>
                   <th style="width:15%;">Qty</th>
                   <th style="width:20%;">Price</th>
-                  <th style="width:15%;">VAT Amt</th>
+                  <th style="width:15%;">VAT 5%</th>
                   <th style="width:25%;">Total</th>
                 </tr>
               </thead>
@@ -1550,7 +1546,7 @@ export const getSalesDataById = async (
                     <th style="width:40%;">Product</th>
                     <th style="width:15%;">Quantity</th>
                     <th style="width:15%;">Price</th>
-                    <th style="width:15%;">VAT Amt</th>
+                    <th style="width:15%;">VAT 5%</th>
                     <th style="width:15%;">Total</th>
                   </tr>
                 </thead>
@@ -1584,9 +1580,7 @@ export const getSalesDataById = async (
       return;
     }
 
-    res.status(200).json({
-      data: transformedInvoice,
-    });
+    res.status(200).json(transformedInvoice);
 
   } catch (error) {
     (handleError as any)(res, error);
