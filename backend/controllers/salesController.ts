@@ -736,7 +736,7 @@ export const getSalesData = async (
     const dateFilter: any = {};
     if (fromDate) dateFilter.$gte = fromDate;
     if (toDate) dateFilter.$lte = toDate;
-    
+
     const query: any = {};
     if (Object.keys(dateFilter).length > 0) {
       query.date = dateFilter;
@@ -1229,6 +1229,10 @@ export const searchSalesData = async (
   res: express.Response
 ): Promise<void> => {
   try {
+    const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
+    const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const offset: number = (page - 1) * limit;
+
     const query: any = {};
     const search = req.query.search as string;
 
@@ -1253,7 +1257,9 @@ export const searchSalesData = async (
     const salesData = await SalesDetail.find(query)
       .populate("products.productId")
       .sort({ createdAt: -1 })
-      .lean();
+      .lean()
+      .skip(offset)
+      .limit(limit);
 
     if (!salesData || salesData.length === 0) {
       res
