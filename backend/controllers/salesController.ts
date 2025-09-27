@@ -203,7 +203,7 @@ export const createSaleData = async (
       products: productsArray,
       grandTotal,
       invoiceNo: currentInvoiceNo,
-      invoice: `BS-${currentInvoiceNo}`,
+      invoice: `${currentInvoiceNo}`,
       date: new Date(),
     });
 
@@ -402,7 +402,7 @@ export const printSalesData = async (
         display: block;
         margin-bottom: 2px;
       }
- 
+
       .footer p {
         margin: 0;
       }
@@ -443,7 +443,7 @@ export const printSalesData = async (
         </tr>
         <tr>
           <td><strong>Invoice#</strong></td>
-          <td>BS-${invoiceNo}</td>
+          <td>${invoiceNo}</td>
         </tr>
         <tr>
           <td><strong>Date</strong></td>
@@ -651,6 +651,7 @@ export const printSalesData = async (
       <h1>${businessConfig.rcpt_name}</h1>
       <p>${businessConfig.rcpt_address}</p>
       <p>${businessConfig.contactString}</p>
+      <p>TAX INVOICE</p>
     </div>
  
     <!-- Customer + Invoice Info -->
@@ -661,9 +662,8 @@ export const printSalesData = async (
       </div>
       <div class="info-block">
         <p><strong>Date</strong> ${date}</p>
-        <p><strong>Invoice#</strong> BS-${invoiceNo}</p>
+        <p><strong>Invoice#</strong> ${invoiceNo}</p>
         <p><strong>TRN:</strong>104155043300003</p>
-
       </div>
     </div>
  
@@ -996,7 +996,7 @@ export const getSalesData = async (
       <table class="info">
         <tr>
           <td><strong>Invoice#</strong></td>
-          <td>BS-${invoiceNo}</td>
+          <td>${invoiceNo}</td>
         </tr>
         <tr>
           <td><strong>Date</strong></td>
@@ -1162,6 +1162,8 @@ export const getSalesData = async (
                   <h1>${(businessConfig as any).rcpt_name}</h1>
                   <p>${(businessConfig as any).rcpt_address}</p>
                   <p>${(businessConfig as any).contactString}</p>
+                  <p><strong>TAX INVOICE</strong></p>
+                  <p><strong>TRN:</strong>104155043300003</p>
                 </div>
                 <div class="info-section">
                   <div class="info-block">
@@ -1170,8 +1172,7 @@ export const getSalesData = async (
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong> ${new Date(date).toLocaleDateString()}</p>
-                    <p><strong>Invoice#</strong> BS-${invoiceNo}</p>
-                    <p><strong>TRN:</strong>104155043300003</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">
@@ -1187,6 +1188,10 @@ export const getSalesData = async (
                   <tbody>
                     ${itemRows}
                   </tbody>
+                  <tr>
+                      <td colspan="4">Total</td>
+                      <td>${sumOfTotal} AED</td>
+                    </tr>
                   <tr>
                       <td colspan="4">Total VAT</td>
                       <td>${sumOfVat} AED</td>
