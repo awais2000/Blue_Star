@@ -6,6 +6,8 @@ export interface ITempProducts extends Document {
     unitPrice: number;
     discount: number;
     VATstatus: string;
+    createdAt: Date;  
+
 };
 
 
@@ -18,7 +20,7 @@ const TempProductsSchema: Schema<ITempProducts> = new Schema(
     discount: { type: Number, trim: true },
     VATstatus: {type: String, trim: true},
   },
-  { versionKey: false }
+  { versionKey: false, timestamps: true, },
 );
 
 

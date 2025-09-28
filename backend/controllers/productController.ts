@@ -30,17 +30,17 @@ export const addProduct = async (req: express.Request, res: express.Response): P
       res.status(400).send({ message: `${missingFields.join(",")} required` });
       return;
     }
+    let imagePublicId;
 
-    if (!req.file) {
-      res.status(400).send({ message: "Image is required" });
-      return;
+    if (req.file) {
+      imagePublicId = null;
+
+      const { public_id } = await uploadPhoto(req.file.path, 'profile_pictures');
+
+      imagePublicId = public_id;
     }
 
-    let imagePublicId = null;
-
-    const { public_id } = await uploadPhoto(req.file.path, 'profile_pictures');
-
-    imagePublicId = public_id;
+    
 
    const newProduct = await Product.create({
       productName,

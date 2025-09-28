@@ -210,8 +210,6 @@ export const createSaleData = async (
 
     invoiceNoNew = currentInvoiceNo;
 
-    await TempProducts.deleteMany({});
-
     res.status(201).json({
       success: true,
       message: "Sale created successfully",
@@ -236,6 +234,8 @@ export const printSalesData = async (
       .sort({ createdAt: -1 })
       .lean();
 
+    const getvatstatus = await TempProducts.findOne({}).sort({ createdAt: -1 }).lean();
+
     if (!latestConfig?.printType) {
       res.status(404).json({ message: "Print Type not found!" });
       return;
@@ -252,55 +252,82 @@ export const printSalesData = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotal = getSalesData.grandTotal || 0;
+    let itemDiscount = 0;
 
+        let itemRows = "";
+    let sumOfTotal = 0;
+    let sumOfVat = 0;
+    let newDiscount = 0;
 
+    if (getvatstatus?.VATstatus === "withoutVAT") {
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          const itemNetTotal = formatCurrency(item.total); // exclude VAT in net total
+          itemDiscount = item.discount;
 
-    // ... (The rest of the controller remains the same up to here)
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-// --- FIX START: Apply formatCurrency to item rows ---
-const itemRows = (getSalesData.products || [])
-  .map((item: any) => {
-    // Apply formatCurrency to all currency fields
-    const itemRate = formatCurrency(item.rate);
-    const vatAmount = formatCurrency(item.VAT);
-    const itemTotal = formatCurrency(item.total);
-    const itemNetTotal = formatCurrency(item.netTotal);
-    
-    // Note: item.qty usually doesn't need currency formatting unless it can be a decimal like 1.5
-    
-    return `
-      <tr>
-        <td>${item.productName}</td>
-        <td style="text-align:right;">${item.qty}</td>
-        <td style="text-align:right;">${itemRate}</td>
-        <td style="text-align:right;">${vatAmount}</td>
-        <td style="text-align:right;">${itemNetTotal}</td>
-      </tr>
-    `;
-  })
-  .join("");
+      sumOfTotal = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.total || 0),
+        0
+      );
 
-// --- FIX B: Apply formatCurrency to the totals variables ---
-// The sum calculations below still use toFixed(2) to ensure precise calculation, 
-// but we apply formatCurrency when defining the final output variables.
+      sumOfVat = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.VAT || 0),
+        0
+      );
 
-const sumOfTotal = formatCurrency(
-  (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.total || 0), 0)
-);
+      newDiscount = Number(itemDiscount) + Number(sumOfVat);
+    } else {
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          const itemNetTotal = formatCurrency(item.netTotal);
+          itemDiscount = item.discount;
 
-const sumOfVat = formatCurrency(
-  (getSalesData.products || []).reduce((acc: number, item: any) => acc + Number(item.VAT || 0), 0)
-);
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-// --- FIX C: Apply formatCurrency to grandTotal and invoiceNo (if applicable) ---
-const formattedGrandTotal = formatCurrency(grandTotal);
+      sumOfTotal = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.total || 0),
+        0
+      );
 
-// ... (The rest of the controller)
-    // --- FIX END ---
+      sumOfVat = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.VAT || 0),
+        0
+      );
+
+      newDiscount = Number(itemDiscount); 
+    }
+
+    const formattedGrandTotal = formatCurrency(grandTotal);
+
     
     let invoiceHtml = "";
 
-    // ... (The rest of the controller, where you apply the header fix below)
 
     if (latestConfig.printType === "thermal") {
       invoiceHtml = `<!DOCTYPE html>
@@ -318,7 +345,8 @@ const formattedGrandTotal = formatCurrency(grandTotal);
             }
       
             .thermal {
-              width: 80mm;
+              width: 65mm;
+              min-height: 150mm;
               font-size: 12px;
               padding: 8px;
               margin: auto;
@@ -445,7 +473,7 @@ const formattedGrandTotal = formatCurrency(grandTotal);
             /* Print */
             @media print {
               @page {
-                size: 80mm auto;
+                size: 65mm auto;
                 margin: 0;
               }
               body {
@@ -511,6 +539,10 @@ const formattedGrandTotal = formatCurrency(grandTotal);
             <!-- Totals -->
             <table class="totals">
               <tr>
+                <td>Disc</td>
+                <td>${newDiscount} AED</td>
+              </tr>
+              <tr>
                 <td>Total</td>
                 <td>${sumOfTotal} AED</td>
               </tr>
@@ -523,14 +555,10 @@ const formattedGrandTotal = formatCurrency(grandTotal);
                 <td>${grandTotal} AED</td>
               </tr>
             </table>
-      
-          
-        
           </div>
         </body>
-                </html>`;
+      </html>`;
     }
-
     else if (latestConfig.printType === "A4") {
       invoiceHtml = `<!DOCTYPE html>
             <html lang="en">
@@ -693,12 +721,15 @@ const formattedGrandTotal = formatCurrency(grandTotal);
       return;
     }
 
+    await TempProducts.deleteMany({});
+
     res.status(200).send(invoiceHtml);
   } catch (error) {
     console.error("Error printing sales data:", error);
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
+
 
 
 export const getSalesData = async (
@@ -1223,17 +1254,21 @@ export const getSalesData = async (
   }
 };
 
-
 export const searchSalesData = async (
   req: express.Request,
   res: express.Response
 ): Promise<void> => {
   try {
-    const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
-    const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit: number = req.query.limit
+      ? parseInt(req.query.limit as string, 10)
+      : 10000000;
+    const page: number = req.query.page
+      ? parseInt(req.query.page as string, 10)
+      : 1;
     const offset: number = (page - 1) * limit;
 
-    const query: any = {};
+    // ✅ Always enforce status = 'Y'
+    const query: any = { status: "Y" };
     const search = req.query.search as string;
 
     if (search) {
@@ -1310,7 +1345,6 @@ export const getSalesDataById = async (
   res: express.Response
 ): Promise<void> => {
   try {
-    // 1. Get ID (which is the invoiceNo) and printType
     const invoiceNo = req.params.id;
 
     if (!invoiceNo) {
@@ -1318,19 +1352,18 @@ export const getSalesDataById = async (
       return;
     }
 
-    const latestConfig = await PrinterConfigurationModel.findOne({})
+    const latestConfig = await (PrinterConfigurationModel as any).findOne({})
       .sort({ createdAt: -1 })
       .lean();
+
+    const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
 
     if (!latestConfig?.printType) {
       res.status(404).json({ message: "Print Type not found!" });
       return;
     }
 
-    console.log(latestConfig.printType);
-    
-    // --- DATABASE QUERY ---
-    const invoiceData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo }) // Cast to any if SalesDetail model isn't fully typed for Mongoose
+    const invoiceData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
       .populate("products.productId")
       .lean();
 
@@ -1339,83 +1372,92 @@ export const getSalesDataById = async (
       return;
     }
 
-    const invoice = invoiceData;
+    const getSalesData = invoiceData;
 
-    // --- Data Transformation (Single Invoice) ---
-    const products = (invoice.products || [])
-      .map((product: any) => {
-          if (!product) return null;
+    const customerName = getSalesData.customerName || "";
+    const customerContact = getSalesData.customerContact || "";
+    const date = new Date(getSalesData.date).toLocaleDateString(); 
+    const grandTotal = getSalesData.grandTotal || 0;
+    
+    let itemDiscount = 0;
+    let itemRows = "";
+    let sumOfTotal = 0;
+    let sumOfVat = 0;
+    let newDiscount = 0;
 
-          const productId = (product.productId as any)?._id || product.productId;
+    if (getvatstatus?.VATstatus === "withoutVAT") {
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          const itemNetTotal = formatCurrency(item.total); // Based on your comment: excluding VAT in total here
+          itemDiscount = item.discount;
 
-          return {
-              productId: productId,
-              productName: product.productName,
-              qty: product.qty,
-              rate: product.rate,
-              discount: product.discount,
-              VAT: product.VAT,
-              total: product.total,
-              netTotal: product.netTotal
-          };
-      })
-      .filter((product: any) => product !== null);
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-    const sumOfVat = Number(products.reduce((sum: number, product: any) => {
-        return sum + Number(product.VAT || 0);
-    }, 0).toFixed(2));
+      sumOfTotal = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.total || 0),
+        0
+      );
 
-    const sumOfTotal = Number(products.reduce((sum: number, product: any) => {
-        return sum + Number(product.total || 0);
-    }, 0).toFixed(2));
+      sumOfVat = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.VAT || 0),
+        0
+      );
 
-    const transformedInvoice = {
-        customerName: invoice.customerName,
-        customerContact: invoice.customerContact,
-        products: products,
-        grandTotal: invoice.grandTotal,
-        sumOfVat: sumOfVat,
-        sumOfTotal: sumOfTotal,
-        invoiceNo: invoice.invoiceNo,
-        invoice: invoice.invoice,
-        date: invoice.date,
-        status: invoice.status,
-        _id: invoice._id,
-        createdAt: invoice.createdAt
-    };
+      newDiscount = Number(itemDiscount) + Number(sumOfVat);
+    } else {
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          const itemNetTotal = formatCurrency(item.netTotal); // Now using netTotal (incl. VAT)
+          itemDiscount = item.discount;
 
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-    if (latestConfig.printType === 'thermal' || latestConfig.printType === 'A4') {
-      res.setHeader('Content-Type', 'text/html');
+      sumOfTotal = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.total || 0),
+        0
+      );
 
-      const {
-          customerName = "",
-          customerContact = "",
-          invoiceNo: invNo = "",
-          date = new Date(),
-          grandTotal = 0,
-          products: invProducts = [],
-          sumOfVat: invSumOfVat = 0,
-          sumOfTotal: invSumOfTotal = 0
-      } = transformedInvoice;
+      sumOfVat = (getSalesData.products || []).reduce(
+        (acc: number, item: any) => acc + Number(item.VAT || 0),
+        0
+      );
 
-      const itemRows = invProducts.map((p: any) => `
-          <tr>
-            <td style="text-align: left;">${p.productName || ''}</td>
-            <td style="text-align: right;">${p.qty}</td>
-            <td style="text-align: right;">${p.rate}</td>
-            <td style="text-align: right;">${p.VAT}</td>
-            <td style="text-align: right;">${p.netTotal}</td>
-          </tr>
-      `).join("");
+      newDiscount = Number(itemDiscount); 
+    }
 
-      let htmlTemplate = "";
+    const formattedGrandTotal = formatCurrency(grandTotal);
+    const formattedSumOfTotal = formatCurrency(sumOfTotal);
+    const formattedSumOfVat = formatCurrency(sumOfVat);
+    const formattedNewDiscount = formatCurrency(newDiscount);
+    
+    let invoiceHtml = "";
 
-      const config = businessConfig as any;
-      const dateString = date instanceof Date ? date.toLocaleString().slice(0, 9) : new Date(date).toLocaleString().slice(0, 9);
-      
-      if (latestConfig.printType === "thermal") {
-        htmlTemplate = `<!DOCTYPE html>
+    if (latestConfig.printType === "thermal") {
+      invoiceHtml = `<!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
@@ -1428,46 +1470,172 @@ export const getSalesDataById = async (
               background: #fff;
               color: #000;
             }
-            /* ... (Thermal CSS styles remain the same) ... */
-            .thermal { width: 80mm; font-size: 12px; padding: 8px; margin: auto; box-sizing: border-box; }
-            .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 6px; }
-            .header h3 { font-size: 15px; margin: 2px 0; text-transform: uppercase; letter-spacing: 1px; }
-            .header p { font-size: 11px; margin: 2px 0; line-height: 1.3; }
-            .info { margin-bottom: 6px; }
-            .info td { font-size: 11px; padding: 2px 0; }
-            .items { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 6px; }
-            .items thead { border-bottom: 1px dashed #000; }
-            .items th { font-weight: bold; padding: 3px 4px; white-space: nowrap; }
-            .items td { padding: 3px 4px; vertical-align: top; }
-            .items th:nth-child(1), .items td:nth-child(1) { text-align: left; }
-            .items th:nth-child(2), .items td:nth-child(2), .items th:nth-child(3), .items td:nth-child(3), .items th:nth-child(4), .items td:nth-child(4), .items th:nth-child(5), .items td:nth-child(5) { text-align: right; }
-            .totals { width: 100%; font-size: 12px; margin-top: 8px; border-top: 1px dashed #000; padding-top: 4px; }
-            .totals td { padding: 3px 0; }
-            .totals td:first-child { font-weight: bold; }
-            .totals td:last-child { text-align: right; font-weight: bold; }
-            .footer { text-align: center; margin-top: 12px; font-size: 10px; border-top: 1px dashed #000; padding-top: 6px; line-height: 1.4; }
-            .footer strong { display: block; margin-bottom: 2px; }
-            .footer p { margin: 0; }
-            @media print { @page { size: 80mm auto; margin: 0; } body { background: #fff; margin: 0; padding: 0; } .thermal { box-shadow: none; border: none; margin: 0; } }
+      
+            .thermal {
+              width: 65mm;
+              min-height: 150mm;
+              font-size: 12px;
+              padding: 8px;
+              margin: auto;
+              box-sizing: border-box;
+            }
+      
+            /* Header */
+            .header {
+              text-align: center;
+              border-bottom: 1px dashed #000;
+              padding-bottom: 8px;
+              margin-bottom: 6px;
+            }
+      
+            .header img {
+              max-width: 45px;
+              margin: 0 auto 5px;
+              display: block;
+            }
+      
+            .header h3 {
+              font-size: 15px;
+              margin: 2px 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+      
+            .header p {
+              font-size: 11px;
+              margin: 2px 0;
+              line-height: 1.3;
+            }
+      
+            /* Info */
+            .info {
+              margin-bottom: 6px;
+            }
+      
+            .info td {
+              font-size: 11px;
+              padding: 2px 0;
+            }
+      
+            /* Items Table */
+            .items {
+              width: 100%;
+              font-size: 11px;
+              border-collapse: collapse;
+              margin-top: 6px;
+            }
+      
+            .items thead {
+              border-bottom: 1px dashed #000;
+            }
+      
+            .items th {
+              font-weight: bold;
+              padding: 3px 4px; /* left-right spacing add kiya */
+              white-space: nowrap; /* text break nahi hoga */
+            }
+      
+            .items td {
+              padding: 3px 4px;
+              vertical-align: top;
+            }
+      
+            .items th:nth-child(1),
+            .items td:nth-child(1) {
+              text-align: left;
+            }
+      
+            .items th:nth-child(2),
+            .items td:nth-child(2),
+            .items th:nth-child(3),
+            .items td:nth-child(3),
+            .items th:nth-child(4),
+            .items td:nth-child(4),
+            .items th:nth-child(5),
+            .items td:nth-child(5) {
+              text-align: right;
+            }
+      
+            /* Totals */
+            .totals {
+              width: 100%;
+              font-size: 12px;
+              margin-top: 8px;
+              border-top: 1px dashed #000;
+              padding-top: 4px;
+            }
+      
+            .totals td {
+              padding: 3px 0;
+            }
+      
+            .totals td:first-child {
+              font-weight: bold;
+            }
+      
+            .totals td:last-child {
+              text-align: right;
+              font-weight: bold;
+            }
+      
+            /* Footer */
+            .footer {
+              text-align: center;
+              margin-top: 12px;
+              font-size: 10px;
+              border-top: 1px dashed #000;
+              padding-top: 6px;
+              line-height: 1.4;
+            }
+      
+            .footer strong {
+              display: block;
+              margin-bottom: 2px;
+            }
+      
+            .footer p {
+              margin: 0;
+            }
+      
+            /* Print */
+            @media print {
+              @page {
+                size: 65mm auto;
+                margin: 0;
+              }
+              body {
+                background: #fff;
+                margin: 0;
+                padding: 0;
+              }
+              .thermal {
+                box-shadow: none;
+                border: none;
+                margin: 0;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="thermal">
+            <!-- Header -->
             <div class="header">
-              <h3>${config.rcpt_name}</h3>
-              <p>${config.rcpt_address}</p>
-              <p><strong> </strong> ${config.contactString}</p>
+              <h3>${businessConfig.rcpt_name}</h3>
+              <p>${businessConfig.rcpt_address}</p>
+              <p><strong> </strong> ${businessConfig.contactString}</p>
               <p><strong>TAX INVOICE</strong></p>
               <p><strong>TRN: </strong>104155043300003</p>
             </div>
+      
+            <!-- Info -->
             <table class="info">
               <tr>
                 <td><strong>Invoice#</strong></td>
-                <td>${invNo}</td>
+                <td>${invoiceNo}</td>
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${dateString}</td>
+                <td>${date.toLocaleString().slice(0, 9)}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1478,6 +1646,8 @@ export const getSalesDataById = async (
                 <td>${customerContact}</td>
               </tr>
             </table>
+      
+            <!-- Items -->
             <table class="items">
               <thead>
                 <tr>
@@ -1492,14 +1662,20 @@ export const getSalesDataById = async (
                 ${itemRows}
               </tbody>
             </table>
+      
+            <!-- Totals -->
             <table class="totals">
               <tr>
+                <td>Disc</td>
+                <td>${newDiscount} AED</td>
+              </tr>
+              <tr>
                 <td>Total</td>
-                <td>${invSumOfTotal} AED</td>
+                <td>${sumOfTotal} AED</td>
               </tr>
               <tr>
                 <td>Total VAT</td>
-                <td>${invSumOfVat} AED</td>
+                <td>${sumOfVat} AED</td>
               </tr>
               <tr>
                 <td>Grand Total</td>
@@ -1509,109 +1685,177 @@ export const getSalesDataById = async (
           </div>
         </body>
       </html>`;
-      }
-      else if (latestConfig.printType === 'A4') {
-        htmlTemplate = `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8" />
-            <title>A4 Invoice</title>
-            <style>
-              /* ... (A4 CSS styles remain the same) ... */
-              body { font-family: "Segoe UI", Arial, sans-serif; background: #f5f7fa; padding: 20px; color: #333; }
-              .a4 { width: 210mm; min-height: 297mm; margin: auto; background: #fff; padding: 30px 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px; }
-              .invoice-header { text-align: center; border-bottom: 3px solid #007bff; padding-bottom: 15px; margin-bottom: 25px; }
-              .invoice-header h1 { font-size: 28px; color: #007bff; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .info-section { display: flex; justify-content: space-between; margin-bottom: 25px; }
-              .info-block { font-size: 14px; line-height: 1.6; }
-              .info-block strong { display: inline-block; min-width: 80px; color: #222; }
-              .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-              .items-table thead { background: #007bff; color: #fff; }
-              .items-table th { padding: 14px 12px; text-align: left; }
-              .items-table td { border: 1px solid #ddd; padding: 12px 10px; text-align: left; }
-              .items-table tr:nth-child(even) { background: #f9f9f9; }
-              .items-table tfoot td { font-weight: bold; background: #f1f5ff; border-top: 2px solid #007bff; }
-              .items-table tfoot tr td:last-child { text-align: right; color: #007bff; }
-              .invoice-footer { text-align: center; margin-top: 40px; font-size: 13px; color: #444; }
-              .invoice-footer strong { display: block; margin-bottom: 6px; color: #000; }
-              @media print { .a4 { box-shadow: none; } }
-            </style>
-          </head>
-          <body>
-            <div class="a4">
-              <div class="invoice-header">
-                <h1>${config.rcpt_name}</h1>
-                <p>${config.rcpt_address}</p>
-                <p>${config.contactString}</p>
-                <p><strong>TAX INVOICE</strong></p>
-                <p><strong>TRN:</strong>104155043300003</p>
-              </div>
-              <div class="info-section">
-                <div class="info-block">
-                  <p><strong>Customer</strong> ${customerName}</p>
-                  <p><strong>Contact#</strong> ${customerContact}</p>
+    }
+    else if (latestConfig.printType === "A4") {
+      invoiceHtml = `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <title>A4 Invoice</title>
+              <style>
+                body {
+                  font-family: "Segoe UI", Arial, sans-serif;
+                  background: #f5f7fa;
+                  padding: 20px;
+                  color: #333;
+                }
+                .a4 {
+                  width: 210mm;
+                  min-height: 297mm;
+                  margin: auto;
+                  background: #fff;
+                  padding: 30px 35px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                  border-radius: 8px;
+                }
+                .invoice-header {
+                  text-align: center;
+                  border-bottom: 3px solid #007bff;
+                  padding-bottom: 15px;
+                  margin-bottom: 25px;
+                }
+                .invoice-header img {
+                  width: 100px;
+                  height: auto;
+                  margin-bottom: 10px;
+                }
+                .invoice-header h1 {
+                  font-size: 28px;
+                  color: #007bff;
+                  margin-bottom: 8px;
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                }
+                .info-section {
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 25px;
+                }
+                .info-block {
+                  font-size: 14px;
+                  line-height: 1.6;
+                }
+                .info-block strong {
+                  display: inline-block;
+                  min-width: 80px;
+                  color: #222;
+                }
+                .items-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 20px;
+                  font-size: 14px;
+                }
+                .items-table thead {
+                  background: #007bff;
+                  color: #fff;
+                }
+                .items-table th {
+                  padding: 14px 12px;
+                  text-align: left;
+                }
+                .items-table td {
+                  border: 1px solid #ddd;
+                  padding: 12px 10px;
+                  text-align: left;
+                }
+                .items-table tr:nth-child(even) {
+                  background: #f9f9f9;
+                }
+                .items-table tfoot td {
+                  font-weight: bold;
+                  background: #f1f5ff;
+                  border-top: 2px solid #007bff;
+                }
+                .items-table tfoot tr td:last-child {
+                  text-align: right;
+                  color: #007bff;
+                }
+                .invoice-footer {
+                  text-align: center;
+                  margin-top: 40px;
+                  font-size: 13px;
+                  color: #444;
+                }
+                .invoice-footer strong {
+                  display: block;
+                  margin-bottom: 6px;
+                  color: #000;
+                }
+                @media print {
+                    .a4 {
+                        box-shadow: none;
+                    }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="a4">
+                <div class="invoice-header">
+                  <h1>${(businessConfig as any).rcpt_name}</h1>
+                  <p>${(businessConfig as any).rcpt_address}</p>
+                  <p>${(businessConfig as any).contactString}</p>
+                  <p><strong>TAX INVOICE</strong></p>
+                  <p><strong>TRN:</strong>104155043300003</p>
                 </div>
-                <div class="info-block">
-                  <p><strong>Date</strong> ${dateString}</p>
-                  <p><strong>Invoice#</strong> ${invNo}</p>
+                <div class="info-section">
+                  <div class="info-block">
+                    <p><strong>Customer</strong> ${customerName}</p>
+                    <p><strong>Contact#</strong> ${customerContact}</p>
+                  </div>
+                  <div class="info-block">
+                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
+                  </div>
+                </div>
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40%;">Product</th>
+                      <th style="width:15%;">Quantity</th>
+                      <th style="width:15%;">Price</th>
+                      <th style="width:15%;">VAT 5%</th>
+                      <th style="width:15%;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemRows}
+                  </tbody>
+                  <tr>
+                      <td colspan="4">Total</td>
+                      <td>${sumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${sumOfVat} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${grandTotal} AED</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <div class="invoice-footer">
                 </div>
               </div>
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th style="width:40%;">Product</th>
-                    <th style="width:15%;">Quantity</th>
-                    <th style="width:15%;">Price</th>
-                    <th style="width:15%;">VAT 5%</th>
-                    <th style="width:15%;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemRows}
-                </tbody>
-                <tr>
-                    <td colspan="4">Total</td>
-                    <td style="text-align: right;">${invSumOfTotal} AED</td>
-                </tr>
-                <tr>
-                    <td colspan="4">Total VAT</td>
-                    <td style="text-align: right;">${invSumOfVat} AED</td>
-                </tr>
-                <tfoot>
-                  <tr>
-                    <td colspan="4">Grand Total</td>
-                    <td style="text-align: right;">${grandTotal} AED</td>
-                  </tr>
-                </tfoot>
-              </table>
-              <div class="invoice-footer">
-              </div>
-            </div>
-          </body>
-          </html>
-        `;
-      }
+            </body>
+            </html>`;
+    }
 
-      res.status(200).send(htmlTemplate);
+    else {
+      res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
       return;
     }
 
-    res.status(200).json(transformedInvoice);
+    await TempProducts.deleteMany({});
 
+    res.status(200).send(invoiceHtml);
   } catch (error) {
-    (handleError as any)(res, error);
+    console.error("Error printing sales data:", error);
+    res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
-
-
-
-
-
-
-
-
 
 
 

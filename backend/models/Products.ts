@@ -16,7 +16,7 @@ const ProductSchema: Schema<IProducts> = new Schema(
     productName: { type: String, required: true, trim: true },
     quantity: { type: Number, required: true},
     price: { type: Number, required: true },
-    image: { type: String, required: true },
+    image: { type: String, },
     status: {
       type: String,
       enum: ["Y", "N"], 
