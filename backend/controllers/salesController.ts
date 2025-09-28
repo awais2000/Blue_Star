@@ -66,7 +66,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
       .lean();
 
     if (!cartItems || cartItems.length === 0) {
-      res.status(404).json({ message: "Cart is empty" });
+      res.status(404).json();
       return;
     }
 
@@ -99,7 +99,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
       }
 
       allItems.push({
-        productId: (product as any)?._id,        // ✅ keep productId
+        productId: (product as any)?._id,        
         productName: (product as any)?.productName,
         qty,
         rate,

@@ -58,7 +58,7 @@ export default (app: Application): void => {
     app.get('/getSalesData', getSalesData);
 
     app.get('/searchSalesData', searchSalesData);
-
+    
     app.get('/getSalesDataById/:id', getSalesDataById);
 
     app.get('/deleteFromSaleDetails', deleteFromSaleDetails);
