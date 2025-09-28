@@ -215,7 +215,10 @@ export const updateProduct = async (req: express.Request, res: express.Response)
 
 
 
-export const searchProduct = async (req: express.Request, res: express.Response): Promise<void> => {
+export const searchProduct = async (
+  req: express.Request,
+  res: express.Response
+): Promise<void> => {
   try {
     const { search } = req.query;
 
@@ -224,29 +227,30 @@ export const searchProduct = async (req: express.Request, res: express.Response)
       return;
     }
 
-    const searchTerm = new RegExp(search as string, 'i');
+    const searchTerm = new RegExp(search as string, "i");
 
-    const foundProducts = await Product.find({ 
-      productName: { $regex: searchTerm } 
+    const foundProducts = await Product.find({
+      productName: { $regex: searchTerm },
+      status: "Y" 
     });
 
     if (foundProducts.length > 0) {
       res.status(200).send(foundProducts);
     } else {
       res.status(404).send({
-        message: "No products found matching your search.",
+        message: "No active products found matching your search.",
         products: []
       });
     }
-    
-  } catch(error: any) {
+  } catch (error: any) {
     console.error("Error fetching data:", error);
-    res.status(500).send({ 
-      message: "Internal Server Error!", 
-      error: error.message 
+    res.status(500).send({
+      message: "Internal Server Error!",
+      error: error.message
     });
   }
 };
+
 
 
 
