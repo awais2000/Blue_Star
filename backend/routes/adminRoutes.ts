@@ -10,7 +10,7 @@ import { addProduct, deleteProducts, getProductById, getProducts, searchProduct,
 import {upload} from "../middlewares/uploadMiddleware";
 import { addCustomer, deleteCustomer, getCustomer, updateCustomer } from "../controllers/customerController";
 import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails, getProductInCart, getSalesData, getSalesDataById, printSalesData, searchSalesData, } from "../controllers/salesController";
-import { deleteRequest } from "../controllers/deleteController";
+import { deleteRequest, resetCartData } from "../controllers/deleteController";
 import { addPrintConfig, } from "../controllers/receiptController";
 
 
@@ -58,8 +58,10 @@ export default (app: Application): void => {
     app.get('/getSalesData', getSalesData);
 
     app.get('/searchSalesData', searchSalesData);
-    
+
     app.get('/getSalesDataById/:id', getSalesDataById);
 
     app.get('/deleteFromSaleDetails', deleteFromSaleDetails);
+
+    app.get('/resetCartData', resetCartData);
 }

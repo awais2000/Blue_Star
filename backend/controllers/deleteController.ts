@@ -3,6 +3,8 @@ import { handleError } from "../utils/errorHandler";
 import Invoice from "../models/Invoice"
 import Sales from "../models/Sales";
 import SalesDetail from "../models/SalesDetail";
+import TempProducts from "../models/tempProducts";
+
 
 export const deleteRequest = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
@@ -10,6 +12,19 @@ export const deleteRequest = async (req: express.Request, res: express.Response)
         const deleted2 = await SalesDetail.deleteMany({});
 
         res.status(200).send(deleted);
+    }catch(error){
+        handleError(res, error);
+    }
+}
+
+
+
+
+export const resetCartData = async (req: express.Request, res: express.Response): Promise<void> => {
+    try{
+        const deleted = await TempProducts.deleteMany({});
+
+        res.status(200).send();
     }catch(error){
         handleError(res, error);
     }
