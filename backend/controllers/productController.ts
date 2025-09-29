@@ -237,10 +237,7 @@ export const searchProduct = async (
     if (foundProducts.length > 0) {
       res.status(200).send(foundProducts);
     } else {
-      res.status(404).send({
-        message: "No active products found matching your search.",
-        products: []
-      });
+      res.status(404).send();
     }
   } catch (error: any) {
     console.error("Error fetching data:", error);

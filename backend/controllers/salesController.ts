@@ -176,7 +176,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
                 total = roundToTwoDecimals(baseTotalExclDisc - discount); 
                 
                 // Requirement 2: netTotal = total price (rate * qty) + VAT tax (NO original discount deducted)
-                netTotal = roundToTwoDecimals(baseTotalExclDisc + VATtax); 
+                netTotal = roundToTwoDecimals(baseTotalExclDisc); 
             }
 
             allItems.push({
@@ -1381,7 +1381,7 @@ export const searchSalesData = async (
     if (!salesData || salesData.length === 0) {
       res
         .status(404)
-        .json({ success: false, message: "No matching sales found" });
+        .send();
       return;
     }
 
