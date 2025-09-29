@@ -6,6 +6,8 @@ import { handleError } from "../utils/errorHandler";
 import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
+import { roundToTwoDecimals } from '../utils/priceFormat2'; 
+
 
 
 
@@ -59,73 +61,7 @@ export const addProductToCart = async (req: express.Request, res: express.Respon
 };
 
 
-export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
-  try {
-    const cartItems = await TempProducts.find()
-      .populate("productId")
-      .lean();
-
-    if (!cartItems || cartItems.length === 0) {
-      res.status(404).json();
-      return;
-    }
-
-    const allItems: any[] = [];
-
-    cartItems.forEach(item => {
-      const { productId: product, ...rest } = item;
-
-      const rate = Number(rest.unitPrice || 0);
-      const qty = Number(rest.QTY || 0);
-      const discount = Number(rest.discount || 0);
-      const selectVAT = rest.VATstatus === "withVAT";
-
-      // Always calculate VAT from ORIGINAL rate
-      const VATtax = (rate * qty * 5) / 100;
-
-      // Total depends on VAT status
-      const total = selectVAT
-        ? (rate * qty) - discount
-        : ((rate - (rate * 5) / 100) * qty) - discount;
-
-      let netTotal = 0;
-
-      if (selectVAT) {
-        netTotal = total + VATtax;
-      } else {
-        const originalTotal = (rate * qty) - discount;
-        const totalWithoutVAT = originalTotal - VATtax;
-        netTotal = totalWithoutVAT + VATtax;
-      }
-
-      allItems.push({
-        productId: (product as any)?._id,        
-        productName: (product as any)?.productName,
-        qty,
-        rate,
-        discount,
-        VAT: VATtax,
-        total,
-        netTotal,
-      });
-    });
-
-    const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
-
-    res.status(200).json({
-      items: allItems,
-      grandTotal,
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-};
-
-
-// export const getProductInCart = async (
-//   req: express.Request,
-//   res: express.Response
-// ): Promise<void> => {
+// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
 //   try {
 //     const cartItems = await TempProducts.find()
 //       .populate("productId")
@@ -146,25 +82,26 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 //       const discount = Number(rest.discount || 0);
 //       const selectVAT = rest.VATstatus === "withVAT";
 
-//       let VATtax = 0;
-//       let total = 0;
+//       // Always calculate VAT from ORIGINAL rate
+//       const VATtax = (rate * qty * 5) / 100;
+
+//       // Total depends on VAT status
+//       const total = selectVAT
+//         ? (rate * qty) - discount
+//         : ((rate - (rate * 5) / 100) * qty) - discount;
+
 //       let netTotal = 0;
 
 //       if (selectVAT) {
-//       // ✅ With VAT
-//       VATtax = (rate * qty * 5) / 100;
-//       total = (rate * qty) - discount;
-//       netTotal = total + VATtax;
-//     } else {
-//       // ✅ Without VAT
-//       const pureVAT = (rate * qty * 5) / 100; // only VAT part
-//       VATtax = pureVAT + discount; // for display: VAT includes discount
-//       total = (rate * qty); // discount not subtracted here
-//       netTotal = total + pureVAT; // ✅ only add pure VAT, not discount
-//     }
+//         netTotal = total + VATtax;
+//       } else {
+//         const originalTotal = (rate * qty) - discount;
+//         const totalWithoutVAT = originalTotal - VATtax;
+//         netTotal = totalWithoutVAT + VATtax;
+//       }
 
 //       allItems.push({
-//         productId: (product as any)?._id,
+//         productId: (product as any)?._id,        
 //         productName: (product as any)?.productName,
 //         qty,
 //         rate,
@@ -175,10 +112,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 //       });
 //     });
 
-//     const grandTotal = allItems.reduce(
-//       (acc, item) => acc + (item.netTotal || 0),
-//       0
-//     );
+//     const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
 
 //     res.status(200).json({
 //       items: allItems,
@@ -189,6 +123,86 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 //   }
 // };
 
+
+
+export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
+    try {
+        const cartItems = await (TempProducts as any).find()
+            .populate("productId")
+            .lean();
+
+        if (!cartItems || cartItems.length === 0) {
+            res.status(404).json({ items: [], grandTotal: 0 }); // Better 404 response
+            return;
+        }
+
+        const allItems: any[] = [];
+
+        cartItems.forEach(item => {
+            const { productId: product, ...rest } = item;
+
+            const rate = Number(rest.unitPrice || 0);
+            const qty = Number(rest.QTY || 0);
+            const discount = Number(rest.discount || 0);
+            const selectVAT = rest.VATstatus === "withVAT"; // true if selectVAT, false if withoutVAT
+
+            // 1. Base Calculation (VAT is 5% based on Rate * Qty)
+            const baseTotalExclDisc = rate * qty;
+            const VATtax = roundToTwoDecimals((baseTotalExclDisc * 5) / 100);
+
+            let total: number;        // Item Total (Excl. VAT, usually Incl. Discount)
+            let netTotal: number;     // Item Net Total (Final Price)
+            let finalDiscount: number; // Discount value to return
+
+            if (selectVAT) {
+                // --- LOGIC: WITH VAT (Standard Discount on Base Price) ---
+                
+                // Total (Excl. VAT): Base price minus original discount
+                total = roundToTwoDecimals(baseTotalExclDisc - discount);
+                
+                // Net Total (Incl. VAT): Total (Excl. VAT) plus VAT tax
+                netTotal = roundToTwoDecimals(total + VATtax);
+                
+                finalDiscount = discount; // Return original discount amount
+
+            } else {
+                // --- LOGIC: WITHOUT VAT (Custom Requirement Applied) ---
+                
+                // Requirement 1: discount = original discount + VAT tax
+                finalDiscount = roundToTwoDecimals(discount + VATtax); 
+
+                // Total (Excl. VAT): Use the price before discount and VAT deduction
+                // (Assumes the 'total' field should still reflect the base price minus discount, excluding VAT)
+                total = roundToTwoDecimals(baseTotalExclDisc - discount); 
+                
+                // Requirement 2: netTotal = total price (rate * qty) + VAT tax (NO original discount deducted)
+                netTotal = roundToTwoDecimals(baseTotalExclDisc + VATtax); 
+            }
+
+            allItems.push({
+                productId: (product as any)?._id,
+                productName: (product as any)?.productName,
+                qty,
+                rate: roundToTwoDecimals(rate),
+                discount: finalDiscount, 
+                VAT: VATtax,
+                total,
+                netTotal,
+            });
+        });
+
+        const grandTotal = roundToTwoDecimals(
+            allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0)
+        );
+
+        res.status(200).json({
+            items: allItems,
+            grandTotal,
+        });
+    } catch (error) {
+        (handleError as any)(res, error);
+    }
+};
 
 
 export const deleteFromCart = async (req: express.Request, res: express.Response): Promise<void> => {
