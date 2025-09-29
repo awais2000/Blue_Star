@@ -539,16 +539,16 @@ export const printSalesData = async (
             <!-- Totals -->
             <table class="totals">
               <tr>
-                <td>Disc</td>
-                <td>${newDiscount} AED</td>
-              </tr>
-              <tr>
                 <td>Total</td>
                 <td>${sumOfTotal} AED</td>
               </tr>
               <tr>
                 <td>Total VAT</td>
                 <td>${sumOfVat} AED</td>
+              </tr>
+              <tr>
+                <td>Disc</td>
+                <td>${newDiscount} AED</td>
               </tr>
               <tr>
                 <td>Grand Total</td>
@@ -1662,13 +1662,9 @@ export const getSalesDataById = async (
                 ${itemRows}
               </tbody>
             </table>
-      
+
             <!-- Totals -->
             <table class="totals">
-              <tr>
-                <td>Disc</td>
-                <td>${newDiscount} AED</td>
-              </tr>
               <tr>
                 <td>Total</td>
                 <td>${sumOfTotal} AED</td>
@@ -1676,6 +1672,10 @@ export const getSalesDataById = async (
               <tr>
                 <td>Total VAT</td>
                 <td>${sumOfVat} AED</td>
+              </tr>
+              <tr>
+                <td>Disc</td>
+                <td>${newDiscount} AED</td>
               </tr>
               <tr>
                 <td>Grand Total</td>
