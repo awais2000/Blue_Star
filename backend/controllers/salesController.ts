@@ -247,6 +247,10 @@ export const createSaleData = async (
       .populate("productId")
       .lean();
 
+      const vatstatus = tempProducts.length > 0 ? tempProducts[0].VATstatus : undefined;
+
+      console.log(vatstatus);
+
     if (!tempProducts || tempProducts.length === 0) {
       res.status(400).json({ message: "Cart is empty. Add products first." });
       return;
@@ -294,6 +298,7 @@ export const createSaleData = async (
       invoiceNo: currentInvoiceNo,
       invoice: `${currentInvoiceNo}`,
       date: date,
+      vatStatus: vatstatus,
     });
 
     invoiceNoNew = currentInvoiceNo;
@@ -309,72 +314,82 @@ export const createSaleData = async (
 };
 
 
-
-
+// NOTE: Make sure the following utility function is accessible (either defined above the controller 
+// or imported from a file like '../utils/formatUtils').
 export const printSalesData = async (
-  req: express.Request,
-  res: express.Response
+  req: express.Request,
+  res: express.Response
 ): Promise<void> => {
-  try {
-    let invoiceNo = invoiceNoNew;
-    console.log(invoiceNo);
+  try {
+     let invoiceNo = invoiceNoNew;
+     console.log(invoiceNo);
 
-    if (!invoiceNo) {
-      res.status(400).send({ message: "Please provide the Invoice Number!" });
-      return;
-    }
+    if (!invoiceNo) {
+      res.status(400).send({ message: "Please provide the Invoice Number!" });
+      return;
+    }
 
-    // 1. Get the latest printer config
-    const latestConfig = await (PrinterConfigurationModel as any).findOne({})
-      .sort({ createdAt: -1 })
-      .lean();
+    const latestConfig = await (PrinterConfigurationModel as any).findOne({})
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // 2. Get the current VAT status
-    const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
+    const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
 
-    if (!latestConfig?.printType) {
-      res.status(404).json({ message: "Print Type not found!" });
-      return;
-    }
+    if (!latestConfig?.printType) {
+      res.status(404).json({ message: "Print Type not found!" });
+      return;
+    }
 
-    // 3. Fetch the single invoice data with product details
-    const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
-      .populate("products.productId") // Assuming you want this populate here
-      .lean();
+    const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
+      .populate("products.productId")
+      .lean();
 
-    if (!getSalesData) {
-      res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
-      return;
-    }
-    // --- FIX END ---
+    if (!getSalesData) {
+      res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
+      return;
+    }
 
-    // --- Original Data Extraction ---
-    const customerName = getSalesData.customerName || "";
-    const customerContact = getSalesData.customerContact || "";
-    const date = new Date(getSalesData.date).toLocaleDateString();
-    const grandTotal = getSalesData.grandTotal || 0;
+    const customerName = getSalesData.customerName || "";
+    const customerContact = getSalesData.customerContact || "";
+    const date = new Date(getSalesData.date).toLocaleDateString();
+    const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+
+    let itemRows = "";
+    let sumOfTotal = 0; // Summary Total (Base Price * Qty)
+    let sumOfVat = 0;   // Summary VAT (Total VAT amount)
+    let newDiscount = 0; // Discount amount for the 'Disc' summary line
+    let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
+
+    // --- Calculate Totals First (Consolidated) ---
+    // Calculate unformatted sums needed for final totals
+    sumOfTotal = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
+      0
+    );
+
+    sumOfVat = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.VAT || 0),
+      0
+    );
     
-    let itemDiscount = 0;
-    let itemRows = "";
-    let sumOfTotal = 0; // Final Total (Summary Section)
-    let sumOfVat = 0;
-    let newDiscount = 0;
+    totalDiscountSum = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.discount || 0),
+      0
+    );
 
-    // --- Conditional Mapping and Calculations (VAT Status Logic) ---
+
+    // --- Conditional Item Row Mapping ---
     if (getvatstatus?.VATstatus === "withoutVAT") {
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
           const itemRate = formatCurrency(item.rate);
           const vatAmount = formatCurrency(item.VAT);
-          
-          // Calculate the final Net Total to display in the item row (itemNetTotal)
-          // Rule: itemNetTotal = (Price * Qty) [Excl. VAT]
-          const itemBasePrice = Number(item.rate) * Number(item.qty);
-          const itemNetTotal = formatCurrency(itemBasePrice); 
-          
-          itemDiscount = item.discount;
-          // The itemtotal calculation used in the previous code was for debugging and is removed/replaced here.
 
+          // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
+          const itemBasePrice = Number(item.rate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          const itemNetTotal = formatCurrency(itemNetTotalValue); 
+          
           return `
             <tr>
               <td>${item.productName}</td>
@@ -387,19 +402,8 @@ export const printSalesData = async (
         })
         .join("");
 
-      // Summary Total: Simple sum of Base Price (Rate * Qty) of all items
-      sumOfTotal = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
-        0
-      );
-
-      sumOfVat = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.VAT || 0),
-        0
-      );
-
-      // Discount: Discount + VAT amount
-      newDiscount = Number(itemDiscount) + Number(sumOfVat);
+      // Display Discount: Use the simple total discount sum
+      newDiscount = totalDiscountSum + sumOfVat; 
       
     } else { // WITH VAT (Standard Scenario from Image)
       itemRows = (getSalesData.products || [])
@@ -407,14 +411,11 @@ export const printSalesData = async (
           const itemRate = formatCurrency(item.rate);
           const vatAmount = formatCurrency(item.VAT);
           
-          // --- NEW RULE FOR ITEM ROW TOTAL (based on your image/request) ---
-          // Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
+          // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
           const itemBasePrice = Number(item.rate) * Number(item.qty);
           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
           const itemNetTotal = formatCurrency(itemNetTotalValue); 
           
-          itemDiscount = item.discount;
-
           return `
             <tr>
               <td>${item.productName}</td>
@@ -427,31 +428,24 @@ export const printSalesData = async (
         })
         .join("");
 
-      // Summary Total: Simple sum of Base Price (Rate * Qty) of all items
-      // Rule: Sum of (Rate * Qty) of all items, excluding VAT and Discount
-      sumOfTotal = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
-        0
-      );
-
-      sumOfVat = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.VAT || 0),
-        0
-      );
-
-      newDiscount = Number(itemDiscount); 
+      // Display Discount: Use the simple total discount
+      newDiscount = totalDiscountSum; 
     }
 
+    // --- Final Grand Total Calculation ---
+    // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
+    const calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(newDiscount);
+    
     // --- Final Formatting of Totals for HTML Injection ---
-    // Apply formatting to final summary variables
-    const formattedGrandTotal = formatCurrency(grandTotal);
+    // These variables will be injected into the HTML templates
+    const finalGrandTotal = formatCurrency(calculatedGrandTotal);
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
     const formattedNewDiscount = formatCurrency(newDiscount);
     
     let invoiceHtml = "";
 
-
+    // --- HTML TEMPLATE START ---
     if (latestConfig.printType === "thermal") {
       invoiceHtml = `<!DOCTYPE html>
       <html lang="en">
@@ -663,27 +657,29 @@ export const printSalesData = async (
             <table class="totals">
               <tr>
                 <td>Total</td>
-                <td>${sumOfTotal} AED</td>
+                <td>${formattedSumOfTotal} AED</td>
               </tr>
               <tr>
                 <td>Total VAT</td>
-                <td>${sumOfVat} AED</td>
+                <td>${formattedSumOfVat} AED</td>
               </tr>
               <tr>
                 <td>Disc</td>
-                <td>${newDiscount} AED</td>
+                <td>${formattedNewDiscount} AED</td>
               </tr>
               <tr>
                 <td>Grand Total</td>
-                <td>${grandTotal} AED</td>
+                <td>${finalGrandTotal} AED</td>
               </tr>
             </table>
           </div>
         </body>
       </html>`;
-    }
+     }
     else if (latestConfig.printType === "A4") {
-      invoiceHtml = `<!DOCTYPE html>
+        // ... (A4 HTML template here)
+        invoiceHtml = `
+        <!DOCTYPE html>
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
@@ -819,16 +815,16 @@ export const printSalesData = async (
                   </tbody>
                   <tr>
                       <td colspan="4">Total</td>
-                      <td>${sumOfTotal} AED</td>
+                      <td>${formattedSumOfTotal} AED</td>
                     </tr>
                   <tr>
                       <td colspan="4">Total VAT</td>
-                      <td>${sumOfVat} AED</td>
+                      <td>${formattedSumOfVat} AED</td>
                     </tr>
                   <tfoot>
                     <tr>
                       <td colspan="4">Grand Total</td>
-                      <td>${grandTotal} AED</td>
+                      <td>${finalGrandTotal} AED</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -836,21 +832,22 @@ export const printSalesData = async (
                 </div>
               </div>
             </body>
-            </html>`;
-    }
+            </html>
+`;
+    }
 
-    else {
-      res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
-      return;
-    }
+    else {
+      res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
+      return;
+    }
 
-    await TempProducts.deleteMany({});
+    await TempProducts.deleteMany({});
 
-    res.status(200).send(invoiceHtml);
-  } catch (error) {
-    console.error("Error printing sales data:", error);
-    res.status(500).send({ message: "An unexpected error occurred." });
-  }
+    res.status(200).send(invoiceHtml);
+  } catch (error) {
+    console.error("Error printing sales data:", error);
+    res.status(500).send({ message: "An unexpected error occurred." });
+  }
 };
 
 
@@ -1462,120 +1459,155 @@ export const searchSalesData = async (
 };
 
 
-
 export const getSalesDataById = async (
-  req: express.Request,
-  res: express.Response
+  req: express.Request,
+  res: express.Response
 ): Promise<void> => {
-  try {
-    const invoiceNo = req.params.id;
+  try {
+    // --- FIX 1: Assign invoiceNo from URL parameter (Assuming this controller is mounted with an ID param) ---
+    // Note: If this controller is not mounted with an ID param, you MUST get it from the body/query instead.
+    const invoiceNo = req.params.id; 
+    console.log(invoiceNo);
 
-    if (!invoiceNo) {
-      res.status(400).send({ message: "Please provide the Invoice Number!" });
-      return;
-    }
+    if (!invoiceNo) {
+      res.status(400).send({ message: "Please provide the Invoice Number!" });
+      return;
+    }
 
-    const latestConfig = await (PrinterConfigurationModel as any).findOne({})
-      .sort({ createdAt: -1 })
-      .lean();
+    const latestConfig = await (PrinterConfigurationModel as any).findOne({})
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
+//     const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
 
-    if (!latestConfig?.printType) {
-      res.status(404).json({ message: "Print Type not found!" });
-      return;
-    }
+    if (!latestConfig?.printType) {
+      res.status(404).json({ message: "Print Type not found!" });
+      return;
+    }
 
-    const invoiceData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
-      .populate("products.productId")
-      .lean();
+    const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
+      .populate("products.productId")
+      .lean();
 
-    if (!invoiceData) {
-      res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
-      return;
-    }
+    const getvatstatus = getSalesData ? getSalesData.vatStatus : undefined; 
+    console.log("the real vat status ", getvatstatus);
+    if (!getSalesData) {
+      res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
+      return;
+    }
 
-    const getSalesData = invoiceData;
+    const choiceVAT = "withoutVAT";
+    let calculatedGrandTotal = 0; 
+    let finalDiscountForDisplay = 0;
 
-    const customerName = getSalesData.customerName || "";
-    const customerContact = getSalesData.customerContact || "";
-    const date = new Date(getSalesData.date).toLocaleDateString(); 
-    const grandTotal = getSalesData.grandTotal || 0;
+    const customerName = getSalesData.customerName || "";
+    const customerContact = getSalesData.customerContact || "";
+    const date = new Date(getSalesData.date).toLocaleDateString();
+    const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+
+    // Initialize accumulators (using temporary variables for calculation consistency)
+    let itemRows = "";
+    let sumOfTotal = 0;     // Summary Total (Base Price * Qty)
+    let sumOfVat = 0;       // Summary VAT (Total VAT amount)
+    let totalDiscountSum = 0; // Sum of all item discounts (used for accurate final calculation)
+    
+    // Calculate unformatted sums needed for final totals BEFORE the conditional logic begins
+    sumOfTotal = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
+      0
+    );
+
+    sumOfVat = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.VAT || 0),
+      0
+    );
     
-    let itemDiscount = 0;
-    let itemRows = "";
-    let sumOfTotal = 0;
-    let sumOfVat = 0;
-    let newDiscount = 0;
+    totalDiscountSum = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.discount || 0),
+      0
+    );
+    
+    let newDiscount: number; // The specific discount amount to display on the 'Disc' line
 
-    if (getvatstatus?.VATstatus === "withoutVAT") {
-      itemRows = (getSalesData.products || [])
-        .map((item: any) => {
-          const itemRate = formatCurrency(item.rate);
-          const vatAmount = formatCurrency(item.VAT);
-          const itemNetTotal = formatCurrency(item.total); // Based on your comment: excluding VAT in total here
-          itemDiscount = item.discount;
+    // --- Conditional Mapping and Calculations (VAT Status Logic) ---
+    if (getvatstatus === "withoutVAT") {
+      
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          
+          // Line Item Total Rule: (Qty * Price) + VAT (NO DISCOUNT)
+          const itemBasePrice = Number(item.rate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          
+          const itemNetTotal = formatCurrency(itemNetTotalValue); 
 
-          return `
-            <tr>
-              <td>${item.productName}</td>
-              <td style="text-align:right;">${item.qty}</td>
-              <td style="text-align:right;">${itemRate}</td>
-              <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
-            </tr>
-          `;
-        })
-        .join("");
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-      sumOfTotal = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.total || 0),
-        0
-      );
+      // Display Discount Rule for withoutVAT: Should use the simple total discount sum
+      newDiscount = totalDiscountSum + sumOfVat; 
 
-      sumOfVat = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.VAT || 0),
-        0
-      );
+      // console.log("totalDiscountSum", totalDiscountSum, "sumOfVat", sumOfVat);
+      finalDiscountForDisplay = totalDiscountSum; 
+      calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
 
-      newDiscount = Number(itemDiscount) + Number(sumOfVat);
-    } else {
-      itemRows = (getSalesData.products || [])
-        .map((item: any) => {
-          const itemRate = formatCurrency(item.rate);
-          const vatAmount = formatCurrency(item.VAT);
-          const itemNetTotal = formatCurrency(item.netTotal); // Now using netTotal (incl. VAT)
-          itemDiscount = item.discount;
+    // --- Final Formatting of Totals for HTML Injection ---
+      let finalGrandTotal = formatCurrency(calculatedGrandTotal);
 
-          return `
-            <tr>
-              <td>${item.productName}</td>
-              <td style="text-align:right;">${item.qty}</td>
-              <td style="text-align:right;">${itemRate}</td>
-              <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
-            </tr>
-          `;
-        })
-        .join("");
+      finalGrandTotal = (finalGrandTotal); 
 
-      sumOfTotal = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.total || 0),
-        0
-      );
+      
+    } else { // WITH VAT (Standard Scenario from Image)
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+          
+          // Line Item Total Rule: VAT + (Price * Qty) - NO DISCOUNT
+          const itemBasePrice = Number(item.rate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          const itemNetTotal = formatCurrency(itemNetTotalValue); 
 
-      sumOfVat = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.VAT || 0),
-        0
-      );
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
 
-      newDiscount = Number(itemDiscount); 
-    }
+      // Display Discount Rule for withVAT: Use the simple total discount sum
+      newDiscount = totalDiscountSum; 
+      finalDiscountForDisplay = totalDiscountSum; 
 
-    const formattedGrandTotal = formatCurrency(grandTotal);
+    calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
+      console.log("sumOfTotal", sumOfTotal, "sumOfVat", sumOfVat, "totalDiscountSum", totalDiscountSum);
+    }
+
+    // --- Final Grand Total Calculation (Applies to BOTH scenarios) ---
+    // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
+
+    // const calculatedGrandTotal = choiceVAT ? finalGrandTotal1 : finalGrandTotal2;
+    // --- Final Formatting of Totals for HTML Injection ---
+    const finalGrandTotal = formatCurrency(calculatedGrandTotal);
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
-    const formattedNewDiscount = formatCurrency(newDiscount);
+    const formattedNewDiscount = formatCurrency(finalDiscountForDisplay);
     
     let invoiceHtml = "";
 
@@ -1790,19 +1822,19 @@ export const getSalesDataById = async (
             <table class="totals">
               <tr>
                 <td>Total</td>
-                <td>${sumOfTotal} AED</td>
+                <td>${formattedSumOfTotal} AED</td>
               </tr>
               <tr>
                 <td>Total VAT</td>
-                <td>${sumOfVat} AED</td>
+                <td>${formattedSumOfVat} AED</td>
               </tr>
               <tr>
                 <td>Disc</td>
-                <td>${newDiscount} AED</td>
+                <td>${formattedNewDiscount} AED</td>
               </tr>
               <tr>
                 <td>Grand Total</td>
-                <td>${grandTotal} AED</td>
+                <td>${finalGrandTotal} AED</td>
               </tr>
             </table>
           </div>
@@ -1946,16 +1978,16 @@ export const getSalesDataById = async (
                   </tbody>
                   <tr>
                       <td colspan="4">Total</td>
-                      <td>${sumOfTotal} AED</td>
+                      <td>${formattedSumOfTotal} AED</td>
                     </tr>
                   <tr>
                       <td colspan="4">Total VAT</td>
-                      <td>${sumOfVat} AED</td>
+                      <td>${formattedSumOfVat} AED</td>
                     </tr>
                   <tfoot>
                     <tr>
                       <td colspan="4">Grand Total</td>
-                      <td>${grandTotal} AED</td>
+                      <td>${finalGrandTotal} AED</td>
                     </tr>
                   </tfoot>
                 </table>

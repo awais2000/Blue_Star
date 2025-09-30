@@ -21,6 +21,7 @@ export interface ISalesDetail extends Document {
   date: Date;
   status: "Y" | "N";
   createdAt: Date;
+  vatStatus: string;
 }
 
 const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
@@ -43,6 +44,7 @@ const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
     invoiceNo: { type: Number, required: true, unique: true },
     invoice: {type: String, required: true, trim: true },
     date: { type: Date, default: Date.now },
+    vatStatus: { type: String },
     status: {
       type: String,
       enum: ["Y", "N"],
