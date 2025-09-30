@@ -164,7 +164,6 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
                 netTotal = roundToTwoDecimals(total + VATtax);
                 
                 finalDiscount = discount; // Return original discount amount
-
             } else {
                 // --- LOGIC: WITHOUT VAT (Custom Requirement Applied) ---
                 
@@ -379,6 +378,7 @@ export const printSalesData = async (
           const vatAmount = formatCurrency(item.VAT);
           const itemNetTotal = formatCurrency(item.netTotal);
           itemDiscount = item.discount;
+          const itemtotal = formatCurrency(item.total)
 
           return `
             <tr>
@@ -386,7 +386,7 @@ export const printSalesData = async (
               <td style="text-align:right;">${item.qty}</td>
               <td style="text-align:right;">${itemRate}</td>
               <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
+              <td style="text-align:right;">${itemtotal}</td>
             </tr>
           `;
         })
@@ -428,7 +428,7 @@ export const printSalesData = async (
       
             .thermal {
               width: 65mm;
-              min-height: 150mm;
+              min-height: 110mm;
               font-size: 12px;
               padding: 8px;
               margin: auto;
@@ -617,7 +617,7 @@ export const printSalesData = async (
                 ${itemRows}
               </tbody>
             </table>
-      
+
             <!-- Totals -->
             <table class="totals">
               <tr>
@@ -863,7 +863,7 @@ export const getSalesData = async (
       .limit(limit);
 
     if (!getAllInvoices || getAllInvoices.length === 0) {
-      res.status(404).send({ message: "No invoices found!" });
+      res.status(404).send();
       return;
     }
 
@@ -1555,7 +1555,7 @@ export const getSalesDataById = async (
       
             .thermal {
               width: 65mm;
-              min-height: 150mm;
+              min-height: 110mm;
               font-size: 12px;
               padding: 8px;
               margin: auto;
