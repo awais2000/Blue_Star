@@ -1530,84 +1530,66 @@ export const getSalesDataById = async (
     let newDiscount: number; // The specific discount amount to display on the 'Disc' line
 
     // --- Conditional Mapping and Calculations (VAT Status Logic) ---
-    if (getvatstatus === "withoutVAT") {
-      
-      itemRows = (getSalesData.products || [])
-        .map((item: any) => {
-          const itemRate = formatCurrency(item.rate);
-          const vatAmount = formatCurrency(item.VAT);
-          
-          // Line Item Total Rule: (Qty * Price) + VAT (NO DISCOUNT)
-          const itemBasePrice = Number(item.rate) * Number(item.qty);
-          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-          
-          const itemNetTotal = formatCurrency(itemNetTotalValue); 
+if (getvatstatus === "withoutVAT") {
+  itemRows = (getSalesData.products || [])
+    .map((item: any) => {
+      const itemRate = formatCurrency(item.rate);
+      const vatAmount = formatCurrency(item.VAT);
 
-          return `
-            <tr>
-              <td>${item.productName}</td>
-              <td style="text-align:right;">${item.qty}</td>
-              <td style="text-align:right;">${itemRate}</td>
-              <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
-            </tr>
-          `;
-        })
-        .join("");
+      const itemBasePrice = Number(item.rate) * Number(item.qty);
+      const itemNetTotalValue = itemBasePrice + Number(item.VAT);
 
-      // Display Discount Rule for withoutVAT: Should use the simple total discount sum
-      newDiscount = totalDiscountSum + sumOfVat; 
+      const itemNetTotal = formatCurrency(itemNetTotalValue);
 
-      // console.log("totalDiscountSum", totalDiscountSum, "sumOfVat", sumOfVat);
-      finalDiscountForDisplay = totalDiscountSum; 
-      calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
+      return `
+        <tr>
+          <td>${item.productName}</td>
+          <td style="text-align:right;">${item.qty}</td>
+          <td style="text-align:right;">${itemRate}</td>
+          <td style="text-align:right;">${vatAmount}</td>
+          <td style="text-align:right;">${itemNetTotal}</td>
+        </tr>
+      `;
+    })
+    .join("");
 
-    // --- Final Formatting of Totals for HTML Injection ---
-      let finalGrandTotal = formatCurrency(calculatedGrandTotal);
+  // ✅ Correct discount logic for withoutVAT
+  newDiscount = totalDiscountSum + sumOfVat;  
+  calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
 
-      finalGrandTotal = (finalGrandTotal); 
+} else {
+  itemRows = (getSalesData.products || [])
+    .map((item: any) => {
+      const itemRate = formatCurrency(item.rate);
+      const vatAmount = formatCurrency(item.VAT);
 
-      
-    } else { // WITH VAT (Standard Scenario from Image)
-      itemRows = (getSalesData.products || [])
-        .map((item: any) => {
-          const itemRate = formatCurrency(item.rate);
-          const vatAmount = formatCurrency(item.VAT);
-          
-          // Line Item Total Rule: VAT + (Price * Qty) - NO DISCOUNT
-          const itemBasePrice = Number(item.rate) * Number(item.qty);
-          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-          const itemNetTotal = formatCurrency(itemNetTotalValue); 
+      const itemBasePrice = Number(item.rate) * Number(item.qty);
+      const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+      const itemNetTotal = formatCurrency(itemNetTotalValue);
 
-          return `
-            <tr>
-              <td>${item.productName}</td>
-              <td style="text-align:right;">${item.qty}</td>
-              <td style="text-align:right;">${itemRate}</td>
-              <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
-            </tr>
-          `;
-        })
-        .join("");
+      return `
+        <tr>
+          <td>${item.productName}</td>
+          <td style="text-align:right;">${item.qty}</td>
+          <td style="text-align:right;">${itemRate}</td>
+          <td style="text-align:right;">${vatAmount}</td>
+          <td style="text-align:right;">${itemNetTotal}</td>
+        </tr>
+      `;
+    })
+    .join("");
 
-      // Display Discount Rule for withVAT: Use the simple total discount sum
-      newDiscount = totalDiscountSum; 
-      finalDiscountForDisplay = totalDiscountSum; 
+  // ✅ Correct discount logic for withVAT
+  newDiscount = totalDiscountSum;
+  calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
+}
 
-    calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
-      console.log("sumOfTotal", sumOfTotal, "sumOfVat", sumOfVat, "totalDiscountSum", totalDiscountSum);
-    }
+// --- Final formatting ---
+const finalGrandTotal = formatCurrency(calculatedGrandTotal);
+const formattedSumOfTotal = formatCurrency(sumOfTotal);
+const formattedSumOfVat = formatCurrency(sumOfVat);
+const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount here
 
-    // --- Final Grand Total Calculation (Applies to BOTH scenarios) ---
-    // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
-
-    // const calculatedGrandTotal = choiceVAT ? finalGrandTotal1 : finalGrandTotal2;
-    // --- Final Formatting of Totals for HTML Injection ---
-    const finalGrandTotal = formatCurrency(calculatedGrandTotal);
-    const formattedSumOfTotal = formatCurrency(sumOfTotal);
-    const formattedSumOfVat = formatCurrency(sumOfVat);
-    const formattedNewDiscount = formatCurrency(finalDiscountForDisplay);
     
     let invoiceHtml = "";
 
