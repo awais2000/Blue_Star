@@ -8,10 +8,10 @@ import TempProducts from "../models/tempProducts";
 
 export const deleteRequest = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
-        const deleted = await Sales.deleteMany({});
+        // const deleted = await Sales.deleteMany({});
         const deleted2 = await SalesDetail.deleteMany({});
 
-        res.status(200).send(deleted);
+        res.status(200).send(deleted2);
     }catch(error){
         handleError(res, error);
     }

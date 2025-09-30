@@ -851,7 +851,6 @@ export const printSalesData = async (
 };
 
 
-
 export const getSalesData = async (
   req: express.Request,
   res: express.Response
@@ -862,7 +861,6 @@ export const getSalesData = async (
     const offset: number = (page - 1) * limit;
 
     const printType: string = req.query.printType as string;
-
 
     // --- Date Parsing Fix ---
     let fromDate: Date | null = null;
@@ -884,15 +882,30 @@ export const getSalesData = async (
       }
     }
 
-    const dateFilter: any = {};
-    if (fromDate) dateFilter.$gte = fromDate;
-    if (toDate) dateFilter.$lte = toDate;
+    // --- Build Query ---
+    const query: any = { status: "Y" }; // enforce active invoices only
 
-    const query: any = {};
-    if (Object.keys(dateFilter).length > 0) {
-      query.date = dateFilter;
+    // Date filter
+    if (fromDate || toDate) {
+      query.date = {};
+      if (fromDate) query.date.$gte = fromDate;
+      if (toDate) query.date.$lte = toDate;
     }
 
+    // Search filter (merged from searchSalesData)
+    const search = req.query.search as string;
+    if (search) {
+      const numericSearch = Number(search);
+
+      query.$or = [
+        !isNaN(numericSearch) ? { invoiceNo: numericSearch } : null,
+        { customerName: { $regex: new RegExp(search, "i") } },
+        !isNaN(numericSearch) ? { grandTotal: numericSearch } : null,
+        { "products.productName": { $regex: new RegExp(search, "i") } },
+      ].filter(Boolean);
+    }
+
+    // --- Fetch ---
     const getAllInvoices = await SalesDetail.find(query)
       .populate("products.productId")
       .sort({ date: 1 })
@@ -914,7 +927,7 @@ export const getSalesData = async (
 
           return {
             productId,
-            productName: product.productName,
+            productName: product.productName || (product.productId as any)?.name || "",
             qty: product.qty,
             rate: product.rate,
             discount: product.discount,
@@ -944,8 +957,7 @@ export const getSalesData = async (
       };
     });
 
-    // --- HTML Generation and Response ---
-
+    // --- Print Mode (HTML Response) ---
     if (printType === 'thermal' || printType === 'A4') {
       res.setHeader('Content-Type', 'text/html');
 

@@ -43,7 +43,7 @@ export default (app: Application): void => {
 
     app.post('/createSaleData', createSaleData);
 
-    app.post('/deleteRequest', deleteRequest);
+    app.get('/deleteRequest', deleteRequest);
 
     app.post('/printSalesData', printSalesData);
 
