@@ -173,8 +173,8 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 
                 // Total (Excl. VAT): Use the price before discount and VAT deduction
                 // (Assumes the 'total' field should still reflect the base price minus discount, excluding VAT)
-                total = roundToTwoDecimals(baseTotalExclDisc - discount); 
-                
+                total = roundToTwoDecimals(baseTotalExclDisc - discount) - VATtax; 
+
                 // Requirement 2: netTotal = total price (rate * qty) + VAT tax (NO original discount deducted)
                 netTotal = roundToTwoDecimals(baseTotalExclDisc); 
             }

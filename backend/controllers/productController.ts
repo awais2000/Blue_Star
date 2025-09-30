@@ -144,7 +144,6 @@ export const deleteProducts = async (req: express.Request, res: express.Response
 
 
 
-
 export const updateProduct = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -247,7 +246,6 @@ export const searchProduct = async (
     });
   }
 };
-
 
 
 
