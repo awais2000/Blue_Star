@@ -347,6 +347,7 @@ export const printSalesData = async (
           const vatAmount = formatCurrency(item.VAT);
           const itemNetTotal = formatCurrency(item.total); // exclude VAT in net total
           itemDiscount = item.discount;
+          const itemtotal = formatCurrency(item.total)
 
           return `
             <tr>
@@ -354,7 +355,7 @@ export const printSalesData = async (
               <td style="text-align:right;">${item.qty}</td>
               <td style="text-align:right;">${itemRate}</td>
               <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemNetTotal}</td>
+              <td style="text-align:right;">${itemtotal}</td>
             </tr>
           `;
         })
@@ -378,7 +379,6 @@ export const printSalesData = async (
           const vatAmount = formatCurrency(item.VAT);
           const itemNetTotal = formatCurrency(item.netTotal);
           itemDiscount = item.discount;
-          const itemtotal = formatCurrency(item.total)
 
           return `
             <tr>
@@ -386,7 +386,7 @@ export const printSalesData = async (
               <td style="text-align:right;">${item.qty}</td>
               <td style="text-align:right;">${itemRate}</td>
               <td style="text-align:right;">${vatAmount}</td>
-              <td style="text-align:right;">${itemtotal}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
             </tr>
           `;
         })
