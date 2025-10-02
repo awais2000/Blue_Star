@@ -617,7 +617,7 @@ export const printSalesData = async (
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
-              <title>A4 Invoice</title>
+              <title>A4 fakeInvoice</title>
               <style>
                 body {
                   font-family: "Segoe UI", Arial, sans-serif;
@@ -731,7 +731,7 @@ export const printSalesData = async (
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
-                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
+                    <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">
@@ -747,13 +747,17 @@ export const printSalesData = async (
                   <tbody>
                     ${itemRows}
                   </tbody>
-                  <tr>
+                    <tr>
                       <td colspan="4">Total</td>
                       <td>${formattedSumOfTotal} AED</td>
                     </tr>
                   <tr>
                       <td colspan="4">Total VAT</td>
                       <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total</td>
+                      <td>${formattedNewDiscount} AED</td>
                     </tr>
                   <tfoot>
                     <tr>
@@ -1500,7 +1504,6 @@ if (getvatstatus === "withoutVAT") {
     })
     .join("");
 
-  // ✅ Correct discount logic for withoutVAT
   newDiscount = totalDiscountSum + sumOfVat;  
   calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
 
@@ -1526,7 +1529,6 @@ if (getvatstatus === "withoutVAT") {
     })
     .join("");
 
-  // ✅ Correct discount logic for withVAT
   newDiscount = totalDiscountSum;
   calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
 }
@@ -1775,7 +1777,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
-              <title>A4 Invoice</title>
+              <title>A4 fakeInvoice</title>
               <style>
                 body {
                   font-family: "Segoe UI", Arial, sans-serif;
@@ -1889,7 +1891,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
-                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
+                    <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">
@@ -1906,18 +1908,22 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                     ${itemRows}
                   </tbody>
                   <tr>
-                      <td colspan="4">Total</td>
-                      <td>${formattedSumOfTotal} AED</td>
-                    </tr>
-                  <tr>
-                      <td colspan="4">Total VAT</td>
-                      <td>${formattedSumOfVat} AED</td>
-                    </tr>
-                  <tfoot>
-                    <tr>
-                      <td colspan="4">Grand Total</td>
-                      <td>${finalGrandTotal} AED</td>
-                    </tr>
+                      <td colspan="4">Total</td>
+                      <td>${formattedSumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Disc</td>
+                      <td>${formattedNewDiscount} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${finalGrandTotal} AED</td>
+                    </tr>
                   </tfoot>
                 </table>
                 <div class="invoice-footer">

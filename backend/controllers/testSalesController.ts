@@ -1136,22 +1136,22 @@ const therealprinttype = "A4"
                     ${itemRows}
                   </tbody>
                   <tr>
-                      <td colspan="4">Total</td>
-                      <td>${formattedSumOfTotal} AED</td>
-                    </tr>
-                  <tr>
-                      <td colspan="4">Total VAT</td>
-                      <td>${formattedSumOfVat} AED</td>
-                    </tr>
-                  <tr>
-                    <td>Disc</td>
-                    <td>${formattedNewDiscount} AED</td>
-                    </tr>
-                  <tfoot>
-                    <tr>
-                      <td colspan="4">Grand Total</td>
-                      <td>${finalGrandTotal} AED</td>
-                    </tr>
+                      <td colspan="4">Total</td>
+                      <td>${formattedSumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Disc</td>
+                      <td>${formattedNewDiscount} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${finalGrandTotal} AED</td>
+                    </tr>
                   </tfoot>
                 </table>
                 <div class="invoice-footer">
