@@ -4,7 +4,7 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 export interface ICustomers extends Document {
     customerName:  string;
     customerContact: string;
-    customerAddress: string;
+    date: Date;
     status: "Y" | "N";
     createdAt: Date;
 };
@@ -14,7 +14,7 @@ export interface ICustomers extends Document {
 const CustomerSchema: Schema<ICustomers> = new Schema ({
     customerName: { type: String, required: true, trim: true },
     customerContact: { type: String, required: true},
-    customerAddress: { type: String, required: true },
+    date: { type: Date, default: Date.now },
     status: {
       type: String,
       enum: ["Y", "N"], 

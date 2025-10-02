@@ -61,70 +61,6 @@ export const addProductToCart = async (req: express.Request, res: express.Respon
 };
 
 
-// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
-//   try {
-//     const cartItems = await TempProducts.find()
-//       .populate("productId")
-//       .lean();
-
-//     if (!cartItems || cartItems.length === 0) {
-//       res.status(404).json();
-//       return;
-//     }
-
-//     const allItems: any[] = [];
-
-//     cartItems.forEach(item => {
-//       const { productId: product, ...rest } = item;
-
-//       const rate = Number(rest.unitPrice || 0);
-//       const qty = Number(rest.QTY || 0);
-//       const discount = Number(rest.discount || 0);
-//       const selectVAT = rest.VATstatus === "withVAT";
-
-//       // Always calculate VAT from ORIGINAL rate
-//       const VATtax = (rate * qty * 5) / 100;
-
-//       // Total depends on VAT status
-//       const total = selectVAT
-//         ? (rate * qty) - discount
-//         : ((rate - (rate * 5) / 100) * qty) - discount;
-
-//       let netTotal = 0;
-
-//       if (selectVAT) {
-//         netTotal = total + VATtax;
-//       } else {
-//         const originalTotal = (rate * qty) - discount;
-//         const totalWithoutVAT = originalTotal - VATtax;
-//         netTotal = totalWithoutVAT + VATtax;
-//       }
-
-//       allItems.push({
-//         productId: (product as any)?._id,        
-//         productName: (product as any)?.productName,
-//         qty,
-//         rate,
-//         discount,
-//         VAT: VATtax,
-//         total,
-//         netTotal,
-//       });
-//     });
-
-//     const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
-
-//     res.status(200).json({
-//       items: allItems,
-//       grandTotal,
-//     });
-//   } catch (error) {
-//     handleError(res, error);
-//   }
-// };
-
-
-
 export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
     try {
         const cartItems = await (TempProducts as any).find()
@@ -314,8 +250,6 @@ export const createSaleData = async (
 };
 
 
-// NOTE: Make sure the following utility function is accessible (either defined above the controller 
-// or imported from a file like '../utils/formatUtils').
 export const printSalesData = async (
   req: express.Request,
   res: express.Response
@@ -1386,6 +1320,7 @@ export const getSalesData = async (
   }
 };
 
+
 export const searchSalesData = async (
   req: express.Request,
   res: express.Response
@@ -2005,7 +1940,6 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
 
 
 export const deleteFromSaleDetails = async (req: express.Request, res: express.Response): Promise<void> => {

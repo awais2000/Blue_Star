@@ -1,5 +1,4 @@
 import express from "express";
-// const logoBase64 = fs.readFileSync("./uploads/bluestarlogo.jpg", "base64");
 import { handleError } from "../utils/errorHandler";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import SalesDetail from "../models/SalesDetail"
@@ -38,3 +37,17 @@ export const addPrintConfig = async (req: express.Request, res: express.Response
     handleError(res, error);
   }
 };
+
+
+
+export const getPrintConfig = async (req: express.Request, res: express.Response): Promise<void> => {
+    try{
+        const customers = await PrinterConfigurationModel.find({})
+        .lean();
+
+        res.status(200).send({...customers[0]});
+    }
+    catch(error){
+        handleError(res, error);
+    }
+}

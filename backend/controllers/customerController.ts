@@ -5,9 +5,9 @@ import { handleError } from "../utils/errorHandler";
 
 export const addCustomer = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
-        const {customerName, customerContact, customerAddress} = req.body;
+        const {customerName, customerContact, date} = req.body;
 
-        const requiredFields = ["customerName", "customerContact", "customerAddress"];
+        const requiredFields = ["customerName"];
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if(missingFields.length > 0){
             res.status(400).send({message: `${missingFields.join(' ,')}`});
@@ -17,7 +17,7 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
         const newCustomer = Customer.create({
             customerName: customerName,
             customerContact: customerContact,
-            customerAddress: customerAddress
+            date: date
         });
 
         res.status(201).send({
@@ -34,23 +34,63 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
 
 
 export const getCustomer = async (req: express.Request, res: express.Response): Promise<void> => {
-    try{
-        const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
-        const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-        const offset: number = (page - 1) * limit;
+  try {
+    const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
+    const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const offset: number = (page - 1) * limit;
 
-        const customers = await Customer.find({ status: "Y" })
-        .sort({ customerName: 1 })
-        .skip(offset)
-        .limit(limit)
-        .lean();
+    const query: any = { status: "Y" };
 
-        res.status(200).send(customers);
+    const search = req.query.search as string;
+    if (search) {
+      query.$or = [
+        { customerName: { $regex: new RegExp(search, "i") } },
+        { customerContact: { $regex: new RegExp(search, "i") } },
+        { email: { $regex: new RegExp(search, "i") } },
+      ];
     }
-    catch(error){
-        handleError(res, error);
+
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+
+    if (req.query.fromDate) {
+      const from = new Date(req.query.fromDate as string);
+      if (!isNaN(from.getTime())) {
+        from.setHours(0, 0, 0, 0);
+        fromDate = from;
+      }
     }
-}
+
+    if (req.query.toDate) {
+      const to = new Date(req.query.toDate as string);
+      if (!isNaN(to.getTime())) {
+        to.setHours(23, 59, 59, 999);
+        toDate = to;
+      }
+    }
+
+    if (fromDate || toDate) {
+      query.createdAt = {};
+      if (fromDate) query.createdAt.$gte = fromDate;
+      if (toDate) query.createdAt.$lte = toDate;
+    }
+
+    const customers = await Customer.find(query)
+      .sort({ customerName: 1 })
+      .skip(offset)
+      .limit(limit)
+      .lean();
+
+    if (!customers || customers.length === 0) {
+      res.status(404).json();
+      return;
+    }
+
+    res.status(200).json({ success: true, data: customers });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
 
 
 
@@ -64,9 +104,9 @@ export const updateCustomer = async (req: express.Request, res: express.Response
             res.status(400).send({message: "Please Provide the ID!"});
         };
 
-        const { customerName, customerContact, customerAddress } = req.body;
+        const { customerName, customerContact, date } = req.body;
 
-        const requiredFields = ["customerName", "customerContact", "customerAddress"];
+        const requiredFields = ["customerName"];
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if(missingFields.length > 0){
             res.status(400).send({message: `${missingFields.join(' ,')}`});
@@ -80,7 +120,7 @@ export const updateCustomer = async (req: express.Request, res: express.Response
         $set: {
           customerName,
           customerContact,
-          customerAddress,
+          date,
         },
       },
       { new: true } 
@@ -115,6 +155,37 @@ export const deleteCustomer = async (req: express.Request, res: express.Response
 
         res.status(200).send({...deletedCustomer[0]});
     }catch(error){
+        handleError(res, error);
+    }
+}
+
+
+
+
+export const getCustomerById = async (req: express.Request, res: express.Response): Promise<void> => {
+    try{
+        const id = req.params.id;
+
+        if(!id){
+            res.status(400).send({message: "Please Provide the ID!"});
+        };
+
+        const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
+        const page: number = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+        const offset: number = (page - 1) * limit;
+
+        const customers = await Customer.find({
+        _id: id,
+        status: "Y"
+        })
+        .sort({ customerName: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean();
+
+        res.status(200).send(customers);
+    }
+    catch(error){
         handleError(res, error);
     }
 }
