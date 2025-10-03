@@ -1682,7 +1682,7 @@ export const fprintSalesData = async (
                       <td>${formattedSumOfVat} AED</td>
                     </tr>
                   <tr>
-                      <td colspan="4">Total</td>
+                      <td colspan="4">Disc</td>
                       <td>${formattedNewDiscount} AED</td>
                     </tr>
                   <tfoot>
