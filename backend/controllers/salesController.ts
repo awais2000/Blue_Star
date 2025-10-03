@@ -7,6 +7,8 @@ import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
 import { roundToTwoDecimals } from '../utils/priceFormat2'; 
+import { formatDateTime } from "../utils/timeFormat"
+
 
 
 
@@ -287,6 +289,10 @@ export const printSalesData = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
+
+    const theTime = formatDateTime(time);
+    console.log(theTime);
 
     let itemRows = "";
     let sumOfTotal = 0; // Summary Total (Base Price * Qty)
@@ -376,12 +382,12 @@ export const printSalesData = async (
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
     const formattedNewDiscount = formatCurrency(newDiscount);
-    
+
     let invoiceHtml = "";
 
-    // --- HTML TEMPLATE START ---
     if (latestConfig.printType === "thermal") {
-      invoiceHtml = `<!DOCTYPE html>
+      invoiceHtml = 
+      `<!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
@@ -559,7 +565,7 @@ export const printSalesData = async (
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -617,7 +623,7 @@ export const printSalesData = async (
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
-              <title>A4 fakeInvoice</title>
+              <title>A4 Invoice</title>
               <style>
                 body {
                   font-family: "Segoe UI", Arial, sans-serif;
@@ -730,8 +736,8 @@ export const printSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
-                    <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
+                    <p><strong>Date</strong> ${date} ${theTime}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">
@@ -1455,6 +1461,10 @@ export const getSalesDataById = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
+
+    const theTime = formatDateTime(time);
+    console.log(date, theTime);
 
     // Initialize accumulators (using temporary variables for calculation consistency)
     let itemRows = "";
@@ -1537,7 +1547,7 @@ if (getvatstatus === "withoutVAT") {
 const finalGrandTotal = formatCurrency(calculatedGrandTotal);
 const formattedSumOfTotal = formatCurrency(sumOfTotal);
 const formattedSumOfVat = formatCurrency(sumOfVat);
-const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount here
+const formattedNewDiscount = formatCurrency(newDiscount);
 
     
     let invoiceHtml = "";
@@ -1721,7 +1731,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1732,7 +1742,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                 <td>${customerContact}</td>
               </tr>
             </table>
-      
+
             <!-- Items -->
             <table class="items">
               <thead>
@@ -1777,7 +1787,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
-              <title>A4 fakeInvoice</title>
+              <title>A4 Invoice</title>
               <style>
                 body {
                   font-family: "Segoe UI", Arial, sans-serif;
@@ -1890,8 +1900,8 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
-                    <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
+                    <p><strong>Date</strong> ${date} ${theTime}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">

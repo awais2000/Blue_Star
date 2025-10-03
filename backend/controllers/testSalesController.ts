@@ -5,6 +5,7 @@ import { handleError } from "../utils/errorHandler";
 import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
+import { formatDateTime } from "../utils/timeFormat"
 
 
 
@@ -666,7 +667,9 @@ export const fgetSalesDataById = async (
       .populate("products.productId")
       .lean();
 
-    const getvatstatus = getSalesData ? getSalesData.vatStatus : undefined; 
+    const getvatstatus = getSalesData ? getSalesData.vatStatus : undefined;// =====================================================================================
+    // const getvatstatus = "A4"; 
+
     console.log("the real vat status ", getvatstatus);
     if (!getSalesData) {
       res.status(404).send({ message: `fakeInvoice with number ${invoiceNo} not found!` });
@@ -681,14 +684,16 @@ export const fgetSalesDataById = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
 
-    // Initialize accumulators (using temporary variables for calculation consistency)
+    const theTime = formatDateTime(time);
+    console.log(theTime);
+
     let itemRows = "";
     let sumOfTotal = 0;     // Summary Total (Base Price * Qty)
     let sumOfVat = 0;       // Summary VAT (Total VAT amount)
     let totalDiscountSum = 0; // Sum of all item discounts (used for accurate final calculation)
     
-    // Calculate unformatted sums needed for final totals BEFORE the conditional logic begins
     sumOfTotal = (getSalesData.products || []).reduce(
       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
       0
@@ -704,9 +709,8 @@ export const fgetSalesDataById = async (
       0
     );
     
-    let newDiscount: number; // The specific discount amount to display on the 'Disc' line
+    let newDiscount: number; 
 
-    // --- Conditional Mapping and Calculations (VAT Status Logic) ---
 if (getvatstatus === "withoutVAT") {
   itemRows = (getSalesData.products || [])
     .map((item: any) => {
@@ -763,14 +767,14 @@ if (getvatstatus === "withoutVAT") {
 const finalGrandTotal = formatCurrency(calculatedGrandTotal);
 const formattedSumOfTotal = formatCurrency(sumOfTotal);
 const formattedSumOfVat = formatCurrency(sumOfVat);
-const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount here
+const formattedNewDiscount = formatCurrency(newDiscount);
 
 const therealprinttype = "A4"
 
     
     let invoiceHtml = "";
 
-    if (latestConfig.printType === "thrmal") {
+    if (latestConfig.printType === "A4") {
       invoiceHtml = `<!DOCTYPE html>
       <html lang="en">
         <head>
@@ -949,7 +953,7 @@ const therealprinttype = "A4"
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -960,7 +964,7 @@ const therealprinttype = "A4"
                 <td>${customerContact}</td>
               </tr>
             </table>
-      
+
             <!-- Items -->
             <table class="items">
               <thead>
@@ -1000,7 +1004,7 @@ const therealprinttype = "A4"
         </body>
       </html>`;
     }
-    else if (therealprinttype === "A4") {
+    else if (latestConfig.printType === "thermal") {
       invoiceHtml = `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -1118,7 +1122,7 @@ const therealprinttype = "A4"
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
+                    <p><strong>Date</strong> ${date} ${theTime}</p>
                     <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
@@ -1213,6 +1217,10 @@ export const fprintSalesData = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
+
+    const theTime = formatDateTime(time);
+    console.log(theTime);
 
     let itemRows = "";
     let sumOfTotal = 0; // Summary Total (Base Price * Qty)
@@ -1306,7 +1314,7 @@ export const fprintSalesData = async (
     let invoiceHtml = "";
 
     // --- HTML TEMPLATE START ---
-    if (latestConfig.printType === "thermal") {
+    if (latestConfig.printType === "A4") {
       invoiceHtml = `<!DOCTYPE html>
       <html lang="en">
         <head>
@@ -1485,7 +1493,7 @@ export const fprintSalesData = async (
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1536,7 +1544,7 @@ export const fprintSalesData = async (
         </body>
       </html>`;
      }
-    else if (latestConfig.printType === "A4") {
+    else if (latestConfig.printType === "thermal") {
         // ... (A4 HTML template here)
         invoiceHtml = `
         <!DOCTYPE html>
@@ -1656,7 +1664,7 @@ export const fprintSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
+                    <p><strong>Date</strong> ${date} ${theTime}</p>
                     <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
