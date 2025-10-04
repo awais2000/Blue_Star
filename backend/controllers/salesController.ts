@@ -530,7 +530,7 @@ export const printSalesData = async (
             /* Print */
             @media print {
               @page {
-                size: 65mm auto;
+                size: 80mm auto;
                 margin: 0;
               }
               body {
