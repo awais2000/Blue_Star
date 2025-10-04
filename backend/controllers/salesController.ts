@@ -7,6 +7,8 @@ import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
 import { roundToTwoDecimals } from '../utils/priceFormat2'; 
+import { formatDateTime } from "../utils/timeFormat"
+
 
 
 
@@ -59,70 +61,6 @@ export const addProductToCart = async (req: express.Request, res: express.Respon
     handleError(res, error);
   }
 };
-
-
-// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
-//   try {
-//     const cartItems = await TempProducts.find()
-//       .populate("productId")
-//       .lean();
-
-//     if (!cartItems || cartItems.length === 0) {
-//       res.status(404).json();
-//       return;
-//     }
-
-//     const allItems: any[] = [];
-
-//     cartItems.forEach(item => {
-//       const { productId: product, ...rest } = item;
-
-//       const rate = Number(rest.unitPrice || 0);
-//       const qty = Number(rest.QTY || 0);
-//       const discount = Number(rest.discount || 0);
-//       const selectVAT = rest.VATstatus === "withVAT";
-
-//       // Always calculate VAT from ORIGINAL rate
-//       const VATtax = (rate * qty * 5) / 100;
-
-//       // Total depends on VAT status
-//       const total = selectVAT
-//         ? (rate * qty) - discount
-//         : ((rate - (rate * 5) / 100) * qty) - discount;
-
-//       let netTotal = 0;
-
-//       if (selectVAT) {
-//         netTotal = total + VATtax;
-//       } else {
-//         const originalTotal = (rate * qty) - discount;
-//         const totalWithoutVAT = originalTotal - VATtax;
-//         netTotal = totalWithoutVAT + VATtax;
-//       }
-
-//       allItems.push({
-//         productId: (product as any)?._id,        
-//         productName: (product as any)?.productName,
-//         qty,
-//         rate,
-//         discount,
-//         VAT: VATtax,
-//         total,
-//         netTotal,
-//       });
-//     });
-
-//     const grandTotal = allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0);
-
-//     res.status(200).json({
-//       items: allItems,
-//       grandTotal,
-//     });
-//   } catch (error) {
-//     handleError(res, error);
-//   }
-// };
-
 
 
 export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
@@ -314,9 +252,6 @@ export const createSaleData = async (
 };
 
 
-// NOTE: Make sure the following utility function is accessible (either defined above the controller 
-// or imported from a file like '../utils/formatUtils').
-
 export const printSalesData = async (
   req: express.Request,
   res: express.Response
@@ -354,6 +289,10 @@ export const printSalesData = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
+
+    const theTime = formatDateTime(time);
+    console.log(theTime);
 
     let itemRows = "";
     let sumOfTotal = 0; // Summary Total (Base Price * Qty)
@@ -443,16 +382,16 @@ export const printSalesData = async (
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
     const formattedNewDiscount = formatCurrency(newDiscount);
-    
+
     let invoiceHtml = "";
 
-    // --- HTML TEMPLATE START ---
     if (latestConfig.printType === "thermal") {
-      invoiceHtml = `<!DOCTYPE html>
+      invoiceHtml = 
+      `<!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
-          <title>Thermal Invoice</title>
+          <title>Thermal fakeInvoice</title>
           <style>
             body {
               font-family: "Segoe UI", Arial, sans-serif;
@@ -591,9 +530,8 @@ export const printSalesData = async (
             /* Print */
             @media print {
               @page {
-                size: 65mm auto;
+                size: 80mm auto;
                 margin: 0;
-              }
               body {
                 background: #fff;
                 margin: 0;
@@ -621,12 +559,12 @@ export const printSalesData = async (
             <!-- Info -->
             <table class="info">
               <tr>
-                <td><strong>Invoice#</strong></td>
+                <td><strong>fakeInvoice#</strong></td>
                 <td>${invoiceNo}</td>
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -797,7 +735,7 @@ export const printSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
+                    <p><strong>Date</strong>${date} ${theTime}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
@@ -814,13 +752,17 @@ export const printSalesData = async (
                   <tbody>
                     ${itemRows}
                   </tbody>
-                  <tr>
+                    <tr>
                       <td colspan="4">Total</td>
                       <td>${formattedSumOfTotal} AED</td>
                     </tr>
                   <tr>
                       <td colspan="4">Total VAT</td>
                       <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Disc</td>
+                      <td>${formattedNewDiscount} AED</td>
                     </tr>
                   <tfoot>
                     <tr>
@@ -850,6 +792,8 @@ export const printSalesData = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
+
+
 
 
 export const getSalesData = async (
@@ -1387,6 +1331,7 @@ export const getSalesData = async (
   }
 };
 
+
 export const searchSalesData = async (
   req: express.Request,
   res: express.Response
@@ -1517,6 +1462,10 @@ export const getSalesDataById = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const time = getSalesData.createdAt || 0;
+
+    const theTime = formatDateTime(time);
+    console.log(date, theTime);
 
     // Initialize accumulators (using temporary variables for calculation consistency)
     let itemRows = "";
@@ -1566,7 +1515,6 @@ if (getvatstatus === "withoutVAT") {
     })
     .join("");
 
-  // ✅ Correct discount logic for withoutVAT
   newDiscount = totalDiscountSum + sumOfVat;  
   calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
 
@@ -1592,7 +1540,6 @@ if (getvatstatus === "withoutVAT") {
     })
     .join("");
 
-  // ✅ Correct discount logic for withVAT
   newDiscount = totalDiscountSum;
   calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
 }
@@ -1601,7 +1548,7 @@ if (getvatstatus === "withoutVAT") {
 const finalGrandTotal = formatCurrency(calculatedGrandTotal);
 const formattedSumOfTotal = formatCurrency(sumOfTotal);
 const formattedSumOfVat = formatCurrency(sumOfVat);
-const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount here
+const formattedNewDiscount = formatCurrency(newDiscount);
 
     
     let invoiceHtml = "";
@@ -1785,7 +1732,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1796,7 +1743,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                 <td>${customerContact}</td>
               </tr>
             </table>
-      
+
             <!-- Items -->
             <table class="items">
               <thead>
@@ -1954,7 +1901,7 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
+                    <p><strong>Date</strong> ${date} ${theTime}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
@@ -1972,18 +1919,22 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
                     ${itemRows}
                   </tbody>
                   <tr>
-                      <td colspan="4">Total</td>
-                      <td>${formattedSumOfTotal} AED</td>
-                    </tr>
-                  <tr>
-                      <td colspan="4">Total VAT</td>
-                      <td>${formattedSumOfVat} AED</td>
-                    </tr>
-                  <tfoot>
-                    <tr>
-                      <td colspan="4">Grand Total</td>
-                      <td>${finalGrandTotal} AED</td>
-                    </tr>
+                      <td colspan="4">Total</td>
+                      <td>${formattedSumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Disc</td>
+                      <td>${formattedNewDiscount} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${finalGrandTotal} AED</td>
+                    </tr>
                   </tfoot>
                 </table>
                 <div class="invoice-footer">
@@ -2006,7 +1957,6 @@ const formattedNewDiscount = formatCurrency(newDiscount); // ✅ use newDiscount
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
 
 
 export const deleteFromSaleDetails = async (req: express.Request, res: express.Response): Promise<void> => {
