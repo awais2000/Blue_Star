@@ -6,6 +6,8 @@ import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
 import { formatDateTime } from "../utils/timeFormat"
+import moment from "moment-timezone";
+
 
 
 
@@ -1180,6 +1182,7 @@ const therealprinttype = "A4"
 };
 
 
+
 export const fprintSalesData = async (
   req: express.Request,
   res: express.Response
@@ -1189,7 +1192,7 @@ export const fprintSalesData = async (
      console.log(invoiceNo);
 
     if (!invoiceNo) {
-      res.status(400).send({ message: "Please provide the fakeInvoice Number!" });
+      res.status(400).send({ message: "Please provide the Invoice Number!" });
       return;
     }
 
@@ -1209,23 +1212,25 @@ export const fprintSalesData = async (
       .lean();
 
     if (!getSalesData) {
-      res.status(404).send({ message: `fakeInvoice with number ${invoiceNo} not found!` });
+      res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
       return;
     }
 
     const customerName = getSalesData.customerName || "";
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
-    const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const grandTotalFromDB = getSalesData.grandTotal || 0;
+    const realtime = getSalesData.createdAt || 0;
+    const theTime = formatDateTime(realtime);
+    console.log(theTime);
 
     let itemRows = "";
-    let sumOfTotal = 0; // Summary Total (Base Price * Qty)
-    let sumOfVat = 0;   // Summary VAT (Total VAT amount)
-    let newDiscount = 0; // Discount amount for the 'Disc' summary line
-    let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
+    let sumOfTotal = 0; 
+    let sumOfVat = 0;   
+    let newDiscount = 0; 
+    let totalDiscountSum = 0; 
 
-    // --- Calculate Totals First (Consolidated) ---
-    // Calculate unformatted sums needed for final totals
+
     sumOfTotal = (getSalesData.products || []).reduce(
       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
       0
@@ -1306,16 +1311,16 @@ export const fprintSalesData = async (
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
     const formattedNewDiscount = formatCurrency(newDiscount);
-    
+
     let invoiceHtml = "";
 
-    // --- HTML TEMPLATE START ---
     if (latestConfig.printType === "thermal") {
-      invoiceHtml = `<!DOCTYPE html>
+      invoiceHtml = 
+      `<!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
-          <title>Thermal fakeInvoice</title>
+          <title>Thermal Invoice</title>
           <style>
             body {
               font-family: "Segoe UI", Arial, sans-serif;
@@ -1454,9 +1459,8 @@ export const fprintSalesData = async (
             /* Print */
             @media print {
               @page {
-                size: 65mm auto;
+                size: 80mm auto;
                 margin: 0;
-              }
               body {
                 background: #fff;
                 margin: 0;
@@ -1484,12 +1488,12 @@ export const fprintSalesData = async (
             <!-- Info -->
             <table class="info">
               <tr>
-                <td><strong>fakeInvoice#</strong></td>
+                <td><strong>Invoice#</strong></td>
                 <td>${invoiceNo}</td>
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date.toLocaleString().slice(0, 9)}</td>
+                <td>${date} ${theTime}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1547,7 +1551,7 @@ export const fprintSalesData = async (
             <html lang="en">
             <head>
               <meta charset="UTF-8" />
-              <title>A4 fakeInvoice</title>
+              <title>A4 Invoice</title>
               <style>
                 body {
                   font-family: "Segoe UI", Arial, sans-serif;
@@ -1660,8 +1664,8 @@ export const fprintSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date.toLocaleString()}</p>
-                    <p><strong>fakeInvoice#</strong> ${invoiceNo}</p>
+                    <p><strong>Date</strong>${date} ${theTime}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
                 <table class="items-table">

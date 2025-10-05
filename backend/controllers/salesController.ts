@@ -289,9 +289,8 @@ export const printSalesData = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
-    const time = getSalesData.createdAt || 0;
-
-    const theTime = formatDateTime(time);
+    const realtime = getSalesData.createdAt || 0;
+    const theTime = formatDateTime(realtime);
     console.log(theTime);
 
     let itemRows = "";
@@ -792,8 +791,6 @@ export const printSalesData = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
-
 
 
 export const getSalesData = async (
@@ -1462,10 +1459,9 @@ export const getSalesDataById = async (
     const customerContact = getSalesData.customerContact || "";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
-    const time = getSalesData.createdAt || 0;
-
-    const theTime = formatDateTime(time);
-    console.log(date, theTime);
+    const realtime = getSalesData.createdAt || 0;
+    const theTime = formatDateTime(realtime);
+    console.log(theTime);
 
     // Initialize accumulators (using temporary variables for calculation consistency)
     let itemRows = "";
