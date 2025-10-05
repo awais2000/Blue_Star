@@ -17,11 +17,11 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
         };
 
          const newCustomer = await Customer.create({
-      customerName,
-      customerContact,
-      date,
-      status: "Y"
-    });
+          customerName,
+          customerContact,
+          date,
+          status: "Y"
+        });
 
     const addedCustomer = await Customer.findOne({
       _id: newCustomer._id,
@@ -90,6 +90,7 @@ export const getCustomer = async (req: express.Request, res: express.Response): 
     }
 
     const customers = await Customer.find(query)
+      .collation({ locale: "en", strength: 2 })
       .sort({ customerName: 1 })
       .skip(offset)
       .limit(limit)
