@@ -391,7 +391,7 @@ export const printSalesData = async (
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
-          <title>Thermal fakeInvoice</title>
+          <title>Thermal Invoice</title>
           <style>
             body {
               font-family: "Segoe UI", Arial, sans-serif;
@@ -559,7 +559,7 @@ export const printSalesData = async (
             <!-- Info -->
             <table class="info">
               <tr>
-                <td><strong>fakeInvoice#</strong></td>
+                <td><strong>Invoice#</strong></td>
                 <td>${invoiceNo}</td>
               </tr>
               <tr>
