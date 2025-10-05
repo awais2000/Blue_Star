@@ -21,14 +21,14 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
         });
 
         res.status(201).send({
-        message: "Customer added successfully",
         ...newCustomer[0]
         });
 
     }catch(error){
          handleError(res, error);
     }
-}
+};
+
 
 
 
@@ -86,7 +86,7 @@ export const getCustomer = async (req: express.Request, res: express.Response): 
       return;
     }
 
-    res.status(200).json({ success: true, data: customers });
+    res.status(200).json( customers );
   } catch (error) {
     handleError(res, error);
   }
@@ -131,12 +131,12 @@ export const updateCustomer = async (req: express.Request, res: express.Response
       return;
     }
 
-    res.status(200).send(updatedCustomer);
+    res.status(200).send({...updatedCustomer[0]});
     }
     catch(error){
         handleError(res, error);
     }
-}
+};
 
 
 
@@ -157,7 +157,8 @@ export const deleteCustomer = async (req: express.Request, res: express.Response
     }catch(error){
         handleError(res, error);
     }
-}
+};
+
 
 
 
@@ -188,4 +189,4 @@ export const getCustomerById = async (req: express.Request, res: express.Respons
     catch(error){
         handleError(res, error);
     }
-}
+};
