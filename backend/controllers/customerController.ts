@@ -7,6 +7,8 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
     try{
         const {customerName, customerContact, date} = req.body;
 
+        console.log(req.body);
+
         const requiredFields = ["customerName"];
         const missingFields = requiredFields.filter(field => !req.body[field]);
         if(missingFields.length > 0){
@@ -14,15 +16,27 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
             return;
         };
 
-        const newCustomer = Customer.create({
-            customerName: customerName,
-            customerContact: customerContact,
-            date: date
-        });
+         const newCustomer = await Customer.create({
+      customerName,
+      customerContact,
+      date,
+      status: "Y"
+    });
 
-        res.status(201).send({
-        ...newCustomer[0]
-        });
+    const addedCustomer = await Customer.findOne({
+      _id: newCustomer._id,
+      status: "Y"
+    }).lean(); 
+
+    if (!addedCustomer) {
+      res.status(404).send({ message: "Customer not found after creation." });
+      return;
+    }
+
+    res.status(201).send({
+      message: "Customer added successfully!",
+      ...addedCustomer
+    });
 
     }catch(error){
          handleError(res, error);
