@@ -12,7 +12,7 @@ import { addCustomer, deleteCustomer, getCustomer, getCustomerById, updateCustom
 import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails, getProductInCart, getSalesData, getSalesDataById, printSalesData, searchSalesData, } from "../controllers/salesController";
 import { deleteRequest, resetCartData } from "../controllers/deleteController";
 import { addPrintConfig, getPrintConfig, } from "../controllers/receiptController";
-import { fcreateSaleData, fgetSalesDataById, fprintSalesData } from "../controllers/testSalesController";
+import { fcreateSaleData, fgetSalesData, fgetSalesDataById, fprintSalesData } from "../controllers/testSalesController";
 
 
 export default (app: Application): void => {
@@ -76,4 +76,6 @@ export default (app: Application): void => {
     app.post('/fprintSalesData', fprintSalesData);
 
     app.get('/fgetSalesDataById/:id', fgetSalesDataById);
+
+    app.get('/fgetSalesData', fgetSalesData);
 }

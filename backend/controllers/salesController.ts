@@ -850,7 +850,7 @@ export const getSalesData = async (
     // --- Fetch ---
     const getAllInvoices = await SalesDetail.find(query)
       .populate("products.productId")
-      .sort({ date: 1 })
+      .sort({ invoiceNo: 1 })
       .lean()
       .skip(offset)
       .limit(limit);
