@@ -953,7 +953,7 @@ export const fprintSalesData = async (
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date} ${theTime}</td>
+                <td>${date}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>

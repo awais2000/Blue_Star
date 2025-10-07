@@ -563,7 +563,7 @@ export const printSalesData = async (
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date} ${theTime}</td>
+                <td>${date}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -734,7 +734,7 @@ export const printSalesData = async (
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong>${date} ${theTime}</p>
+                    <p><strong>Date</strong>${date}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
@@ -1728,7 +1728,7 @@ const formattedNewDiscount = formatCurrency(newDiscount);
               </tr>
               <tr>
                 <td><strong>Date</strong></td>
-                <td>${date} ${theTime}</td>
+                <td>${date}</td>
               </tr>
               <tr>
                 <td><strong>Customer</strong></td>
@@ -1897,7 +1897,7 @@ const formattedNewDiscount = formatCurrency(newDiscount);
                     <p><strong>Contact#</strong> ${customerContact}</p>
                   </div>
                   <div class="info-block">
-                    <p><strong>Date</strong> ${date} ${theTime}</p>
+                    <p><strong>Date</strong> ${date}</p>
                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
