@@ -14,7 +14,7 @@ import { formatDateTime } from "../utils/timeFormat"
 
 
 const businessConfig = {
-    rcpt_name: 'Blue Star Electronics Repair L.L.C',
+    rcpt_name: 'BLUE STAR ELECTRONICS REPAIR SOLE PROPRIETORSHIP LLC',
     rcpt_address: 'Baniyas East 9 Near Shabab Baniyas Cafeteria',
     contactString: '+971554831700',
 };
