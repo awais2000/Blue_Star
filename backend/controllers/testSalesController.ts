@@ -7,7 +7,6 @@ import PrinterConfigurationModel from "../models/printerConfiguration";
 import { formatCurrency } from "../utils/priceFormat";
 import { formatDateTime } from "../utils/timeFormat"
 import moment from "moment-timezone";
-import { roundToTwoDecimals, formatCurrencyGrandTotal } from '../utils/priceFormat2'; 
 
 
 
