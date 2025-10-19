@@ -5,7 +5,7 @@ import SalesDetail from "../models/SalesDetail"
 import { handleError } from "../utils/errorHandler";
 import TempProducts from "../models/tempProducts";
 import PrinterConfigurationModel from "../models/printerConfiguration";
-import { formatCurrency } from "../utils/priceFormat";
+import { formatCurrency, formatCurrencyGrandTotal } from "../utils/priceFormat";
 import { roundToTwoDecimals } from '../utils/priceFormat2'; 
 import { formatDateTime } from "../utils/timeFormat"
 
@@ -139,7 +139,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 
         console.log("anotherDiscount", anotherDiscount);
 
-        const grandTotal = formatCurrency(tempgrandTotal);
+        const grandTotal = formatCurrencyGrandTotal(tempgrandTotal);
 
         res.status(200).json({
             items: allItems,
@@ -379,10 +379,12 @@ export const printSalesData = async (
     
     // --- Final Formatting of Totals for HTML Injection ---
     // These variables will be injected into the HTML templates
-    const finalGrandTotal = formatCurrency(calculatedGrandTotal);
+    const semifinalGrandTotal = formatCurrency(calculatedGrandTotal);
     const formattedSumOfTotal = formatCurrency(sumOfTotal);
     const formattedSumOfVat = formatCurrency(sumOfVat);
     const formattedNewDiscount = formatCurrency(newDiscount);
+
+    const finalGrandTotal = formatCurrencyGrandTotal(semifinalGrandTotal);
 
     let invoiceHtml = "";
 
@@ -1543,10 +1545,12 @@ if (getvatstatus === "withoutVAT") {
 }
 
 // --- Final formatting ---
-const finalGrandTotal = formatCurrency(calculatedGrandTotal);
+const semifinalGrandTotal = formatCurrency(calculatedGrandTotal);
 const formattedSumOfTotal = formatCurrency(sumOfTotal);
 const formattedSumOfVat = formatCurrency(sumOfVat);
 const formattedNewDiscount = formatCurrency(newDiscount);
+
+const finalGrandTotal = formatCurrencyGrandTotal(semifinalGrandTotal);
 
     
     let invoiceHtml = "";
