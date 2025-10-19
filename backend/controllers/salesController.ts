@@ -135,9 +135,11 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
             allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0)
         );
 
-        const grandTotal = newgrandTotal - anotherDiscount;
+        const tempgrandTotal = newgrandTotal - anotherDiscount;
 
         console.log("anotherDiscount", anotherDiscount);
+
+        const grandTotal = formatCurrency(tempgrandTotal);
 
         res.status(200).json({
             items: allItems,
