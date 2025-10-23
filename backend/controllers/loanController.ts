@@ -5,8 +5,8 @@ import { handleError } from "../utils/errorHandler";
 
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
-        const { productId, customerId, debit, date} = req.body;
-        const requiredFields = ["productId", "customerId", "debit", "date"];
+        const { productId, customerId, price, date} = req.body;
+        const requiredFields = ["productId", "customerId", "price", "date"];
         const missingFields = requiredFields.filter(field=> !req.body[field]);
         if(missingFields.length > 0){
             res.status(400).send({message: "Bad Request!"});
@@ -15,14 +15,14 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
         const getTotal = await Loans.find({status: 'Y'});
 
-        let total = getTotal.reduce((sum, loan) => sum + loan.debit, 0) + debit;
+        let total = getTotal.reduce((sum, loan) => sum + loan.price, 0) + price;
 
         console.log(getTotal);
         
         const newLoan = await Loans.create({
             productId,
             customerId,
-            debit,
+            price,
             date,
             total
         });
@@ -32,7 +32,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     catch(e){
         handleError(res, e);
     }
-}
+};
 
 
 
@@ -45,9 +45,79 @@ export const getLoan = async (req: express.Request, res: express.Response): Prom
             return;
         }
 
-        
+        res.status(200).send(getLoan);
+
+    }catch(e){
+        handleError(res, e);
+    }
+};
+
+
+
+export const updateLoan = async (req: express.Request, res: express.Response): Promise<void> => {
+    try{
+        const id = req.params.id;
+
+        if(!id){
+            res.status(400).send({message: "Please provide ID!"});
+            return;
+        }
+
+        const { productId, customerId, price, date} = req.body;
+        const requiredFields = ["productId", "customerId", "price", "date"];
+        const missingFields = requiredFields.filter(field=> !req.body[field]);
+        if(missingFields.length > 0){
+            res.status(400).send({message: "Bad Request!"});
+            return;
+        };
+
+        const getTotal = await Loans.find({status: 'Y'});
+
+        let total = getTotal.reduce((sum, loan) => sum + loan.price, 0) + price;
+
+        console.log(getTotal);
+
+        const updatedLoan = await Loans.findByIdAndUpdate(
+            id, 
+            {
+                $set: {
+                    productId,
+                    customerId,
+                    price,
+                    date,
+                    total,
+                },
+            },
+            { new: true } 
+            );
+
+        if (!updatedLoan) {
+        res.status(404).json({ message: "Customer not found!" });
+        return;
+        }
+
+        res.status(200).send({...updatedLoan[0]});
 
     }catch(e){
         handleError(res, e);
     }
 }
+
+
+
+export const deleteLoan = async (req: express.Request, res: express.Response): Promise<void> => {
+    try{
+        const id = req.params.id;
+        if(!id){
+            res.status(400).send({message: "Please Provide the ID!"});
+        }
+        const deletedLoan = await Loans.updateOne(
+            {_id: id},
+            { $set: { status: "N" },}
+        );
+
+        res.status(200).send({...deletedLoan[0]});
+    }catch(error){
+        handleError(res, error);
+    }
+};

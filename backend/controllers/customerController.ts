@@ -45,8 +45,6 @@ export const addCustomer = async (req: express.Request, res: express.Response): 
 
 
 
-
-
 export const getCustomer = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const limit: number = req.query.limit ? parseInt(req.query.limit as string, 10) : 10000000;
@@ -130,16 +128,16 @@ export const updateCustomer = async (req: express.Request, res: express.Response
 
 
         const updatedCustomer = await Customer.findByIdAndUpdate(
-      id, 
-      {
-        $set: {
-          customerName,
-          customerContact,
-          date,
-        },
-      },
-      { new: true } 
-    );
+          id, 
+          {
+            $set: {
+              customerName,
+              customerContact,
+              date,
+            },
+          },
+          { new: true } 
+        );
 
     if (!updatedCustomer) {
       res.status(404).json({ message: "Customer not found!" });

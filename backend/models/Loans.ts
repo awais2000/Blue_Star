@@ -5,7 +5,7 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 export interface ILoans extends Document {
     productId:  number;
     customerId: number;
-    debit: number;
+    price: number;
     date: Date;
     total: number
     status: string;
@@ -18,7 +18,7 @@ const LoansScehma: Schema<ILoans> = new Schema(
   {
     productId: { type: Number, required: true, trim: true },
     customerId: { type: Number, required: true, trim: true },
-    debit: {type: Number, required: true, trim: true},
+    price: {type: Number, required: true, trim: true},
     date: { type: Date, default: Date.now },
     total: {type: Number, required: true, trim: true},
     status: {
