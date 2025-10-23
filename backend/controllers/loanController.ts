@@ -38,12 +38,14 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
 export const getLoan = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
-        const getLoan = await Loans.find({status: 'Y'});
-        
+        const getLoan = await Loans.find({status: 'Y'})
+        .sort({ createdAt: 1 })
+        .lean();
+
         if(getLoan.length < 0){
             res.status(200).send({message: "No Loan detail found!"});
             return;
-        }
+        };
 
         res.status(200).send(getLoan);
 
@@ -94,7 +96,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
         if (!updatedLoan) {
         res.status(404).json({ message: "Customer not found!" });
         return;
-        }
+        };
 
         res.status(200).send({...updatedLoan[0]});
 
