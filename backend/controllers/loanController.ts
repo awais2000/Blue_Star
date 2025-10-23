@@ -43,11 +43,10 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
 
 
-
-
-export const getLoan = async (req: express.Request, res: express.Response): Promise<void> => {
+export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
-        const getLoan = await Loans.find({status: 'Y'})
+        const id = req.params.id;
+        const getLoan = await Loans.find({status: 'Y', customerId: id})
         .sort({ createdAt: 1 })
         .lean();
 

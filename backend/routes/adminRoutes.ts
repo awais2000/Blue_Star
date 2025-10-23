@@ -13,7 +13,7 @@ import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails
 import { deleteRequest, resetCartData } from "../controllers/deleteController";
 import { addPrintConfig, getPrintConfig, } from "../controllers/receiptController";
 import { fcreateSaleData, fgetSalesData, fgetSalesDataById, fprintSalesData } from "../controllers/testSalesController";
-import { addLoan, deleteLoan, getLoan, updateLoan } from "../controllers/loanController";
+import { addLoan, deleteLoan, getLoanById, updateLoan } from "../controllers/loanController";
 
 
 export default (app: Application): void => {
@@ -73,7 +73,7 @@ export default (app: Application): void => {
 
     app.post('/addLoan', addLoan);
 
-    app.get('/getLoan', getLoan);
+    app.get('/getLoanById/:id', getLoanById);
 
     app.put('/updateLoan/:id', updateLoan);
 
