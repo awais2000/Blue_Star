@@ -3,36 +3,50 @@ import Loans from "../models/Loans";
 import { handleError } from "../utils/errorHandler";
 
 
+
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
-    try{
-        const { productId, customerId, price, date} = req.body;
-        const requiredFields = ["productId", "customerId", "price", "date"];
-        const missingFields = requiredFields.filter(field=> !req.body[field]);
-        if(missingFields.length > 0){
-            res.status(400).send({message: "Bad Request!"});
-            return;
-        };
+  try {
+    const { productId, customerId, price, date } = req.body;
 
-        const getTotal = await Loans.find({status: 'Y'});
-
-        let total = getTotal.reduce((sum, loan) => sum + loan.price, 0) + price;
-
-        console.log(getTotal);
-        
-        const newLoan = await Loans.create({
-            productId,
-            customerId,
-            price,
-            date,
-            total
-        });
-        
-        res.status(200).send(newLoan.toObject());
+    const requiredFields = ["productId", "customerId", "price", "date"];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      res.status(400).send(`${missingFields.join(", ")} is required`);
+      return;
     }
-    catch(e){
-        handleError(res, e);
+
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice)) {
+      res.status(400).send("Invalid price: must be a number");
+      return;
     }
+
+    const activeLoans = await Loans.find({ status: "Y" });
+
+    // const totalActive = activeLoans.reduce((sum, loan) => {
+    //   const loanPrice = Number(loan.price) || 0; 
+    //   return sum + loanPrice;
+    // }, 0);
+
+    // const total = totalActive + numericPrice;
+    let total =
+      activeLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
+      numericPrice;
+    
+    const newLoan = await Loans.create({
+      productId,
+      customerId,
+      price: numericPrice,
+      date,
+      total,
+    });
+
+    res.status(200).json(newLoan.toObject());
+  } catch (e) {
+    handleError(res, e);
+  }
 };
+
 
 
 
