@@ -21,18 +21,12 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    const activeLoans = await Loans.find({ status: "Y" });
+    const customerLoans = await Loans.find({ status: "Y", customerId });
 
-    // const totalActive = activeLoans.reduce((sum, loan) => {
-    //   const loanPrice = Number(loan.price) || 0; 
-    //   return sum + loanPrice;
-    // }, 0);
-
-    // const total = totalActive + numericPrice;
-    let total =
-      activeLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
+    const total =
+      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
       numericPrice;
-    
+
     const newLoan = await Loans.create({
       productId,
       customerId,
@@ -46,6 +40,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     handleError(res, e);
   }
 };
+
 
 
 
