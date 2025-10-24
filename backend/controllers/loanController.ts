@@ -65,23 +65,19 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
   try {
     const { id } = req.params; // this is customerId
 
-    // ✅ 1. Fetch all active loans for this customer
     const loans = await Loans.find({ status: "Y", customerId: id })
       .sort({ createdAt: 1 })
       .populate<{ productId: IProducts }>("productId")
       .populate("customerId")
       .lean();
 
-    // ✅ 2. Handle no results
     if (!loans || loans.length === 0) {
       res.status(200).json({ message: "No loan details found!", total: 0, loans: [] });
       return;
     }
 
-    // ✅ 3. Determine total from last entry
     const total = Number(loans[loans.length - 1].total) || 0;
 
-    // ✅ 4. Flatten each populated loan
     const flattenedLoans = loans.map((loan) => ({
       _id: loan._id,
       productId: loan.productId?._id || null,
@@ -96,7 +92,6 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       createdAt: loan.createdAt,
     }));
 
-    // ✅ 5. Send all flattened entries + separate total
     res.status(200).json({
       total,
       loans: flattenedLoans,
@@ -105,8 +100,6 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
     handleError(res, e);
   }
 };
-
-
 
 
 export const updateLoan = async (req: express.Request, res: express.Response): Promise<void> => {
@@ -131,7 +124,6 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     }
 
-    // Get the existing loan
     const existingLoan = await Loans.findById(id);
     if (!existingLoan) {
       res.status(404).json({ message: "Loan not found!" });
@@ -141,7 +133,6 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     const oldCustomerId = String(existingLoan.customerId);
     const newCustomerId = String(customerId);
 
-    // Update this specific loan
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
       { productId, customerId: newCustomerId, price: numericPrice, date },
@@ -151,9 +142,8 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     if (!updatedLoan) {
       res.status(500).json({ message: "Error updating loan." });
       return;
-    };
+    }
 
-    // Function to recalculate totals for a customer
     const recalcTotalsForCustomer = async (custId: string) => {
       const loans = await Loans.find({ customerId: custId, status: "Y" }).sort({ date: 1, _id: 1 });
 
@@ -177,17 +167,37 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       }
     };
 
-    // Recalculate totals for old customer if customer changed
     if (oldCustomerId !== newCustomerId) {
       await recalcTotalsForCustomer(oldCustomerId);
     }
 
-    // Always recalc totals for the new customer
     await recalcTotalsForCustomer(newCustomerId);
 
-    // Send final updated record
-    const finalLoan = await Loans.findById(id);
-    res.status(200).json(finalLoan);
+    const finalLoan = await Loans.findById(id)
+      .populate("productId")
+      .populate("customerId")
+      .lean();
+
+    if (!finalLoan) {
+      res.status(404).json({ message: "Updated loan not found after update!" });
+      return;
+    }
+
+    const flattenedLoan = {
+      _id: finalLoan._id,
+      productId: finalLoan.productId?._id || null,
+      productName: (finalLoan.productId as any)?.productName || null,
+      productCategory: (finalLoan.productId as any)?.quantity || null,
+      customerId: finalLoan.customerId?._id || null,
+      customerName: (finalLoan.customerId as any)?.customerName || null,
+      price: finalLoan.price,
+      total: finalLoan.total,
+      date: finalLoan.date,
+      status: finalLoan.status,
+      createdAt: finalLoan.createdAt,
+    };
+
+    res.status(200).json({...flattenedLoan});
   } catch (e) {
     handleError(res, e);
   }
@@ -237,10 +247,31 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
       await Loans.bulkWrite(bulkOps);
     }
 
-    res.status(200).json({
-      message: "Loan deleted and totals updated successfully!",
-      deletedLoan,
-    });
+    const finalLoan = await Loans.findById(id)
+      .populate("productId")
+      .populate("customerId")
+      .lean();
+
+    if (!finalLoan) {
+      res.status(404).json({ message: "Updated loan not found after update!" });
+      return;
+    }
+
+    const flattenedLoan = {
+      _id: finalLoan._id,
+      productId: finalLoan.productId?._id || null,
+      productName: (finalLoan.productId as any)?.productName || null,
+      productCategory: (finalLoan.productId as any)?.quantity || null,
+      customerId: finalLoan.customerId?._id || null,
+      customerName: (finalLoan.customerId as any)?.customerName || null,
+      price: finalLoan.price,
+      total: finalLoan.total,
+      date: finalLoan.date,
+      status: finalLoan.status,
+      createdAt: finalLoan.createdAt,
+    };
+
+    res.status(200).json({...flattenedLoan});
   } catch (error) {
     handleError(res, error);
   }

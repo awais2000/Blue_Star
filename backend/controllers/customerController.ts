@@ -170,8 +170,6 @@ export const deleteCustomer = async (req: express.Request, res: express.Response
 
 
 
-
-
 export const getCustomerById = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
         const id = req.params.id;
