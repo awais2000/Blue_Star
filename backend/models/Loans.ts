@@ -3,8 +3,8 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 
 
 export interface ILoans extends Document {
-    productId:  string;
-    customerId: string;
+    productId:  mongoose.Types.ObjectId;
+    customerId: mongoose.Types.ObjectId;
     price: number;
     date: Date;
     total: number
@@ -14,23 +14,22 @@ export interface ILoans extends Document {
 
 
 
-const LoansScehma: Schema<ILoans> = new Schema(
-  {
-    productId: { type: String, required: true, trim: true },
-    customerId: { type: String, required: true, trim: true },
-    price: {type: Number, required: true, trim: true},
-    date: { type: Date, default: Date.now },
-    total: {type: Number, required: true, trim: true},
-    status: {
-      type: String,
-      enum: ["Y", "N"],
-      default: "Y",
-    },
-    createdAt: { type: Date, default: Date.now },
+const LoansScehma = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Products",
+    required: true,
   },
-  { versionKey: false }
-);
-
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customers",
+    required: true,
+  },
+  price: Number,
+  date: Date,
+  total: Number,
+  status: { type: String, default: "Y" },
+}, { timestamps: true });
 
 
 const Loans: Model<ILoans> = mongoose.model<ILoans>("Loans", LoansScehma);

@@ -107,8 +107,6 @@ export const getCustomer = async (req: express.Request, res: express.Response): 
 
 
 
-
-
 export const updateCustomer = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
         const id = req.params.id;
@@ -150,8 +148,6 @@ export const updateCustomer = async (req: express.Request, res: express.Response
         handleError(res, error);
     }
 };
-
-
 
 
 
