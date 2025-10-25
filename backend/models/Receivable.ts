@@ -2,20 +2,20 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 
 
 
-export interface ILoans extends Document {
+export interface IReceivable extends Document {
     productId:  mongoose.Types.ObjectId;
     customerId: mongoose.Types.ObjectId;
-    price: number;
-    receivable: number;
     date: Date;
-    total: number
+    totalBalance: number;
+    paid: number;
+    total: number;
     status: string;
     createdAt: Date;
 };
 
 
 
-const LoansScehma = new mongoose.Schema({
+const ReceivableScehma = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Products",
@@ -26,13 +26,13 @@ const LoansScehma = new mongoose.Schema({
     ref: "Customers",
     required: true,
   },
-  price: Number,
-  receivable: Number,
   date: Date,
+  totalBalance: Number,
+  paid: Number,
   total: Number,
   status: { type: String, default: "Y" },
 }, { timestamps: true });
 
 
-const Loans: Model<ILoans> = mongoose.model<ILoans>("Loans", LoansScehma);
-export default Loans;
+const Receivable: Model<IReceivable> = mongoose.model<IReceivable>("Receivable", ReceivableScehma);
+export default Receivable;

@@ -4,11 +4,11 @@ import Loans from "../models/Loans";
 import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 
-
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productId, customerId, price, date } = req.body;
 
+    // 1. Validate required fields
     const requiredFields = ["productId", "customerId", "price", "date"];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     if (missingFields.length > 0) {
@@ -16,17 +16,20 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
+    // 2. Validate price
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
       res.status(400).send("Invalid price: must be a number");
       return;
     }
 
+    // 3. Get all active loans for the customer
     const customerLoans = await Loans.find({ status: "Y", customerId });
-    const total =
-      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
-      numericPrice;
 
+    // 4. Compute current total (existing prices + new price) as you already had
+    const total = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) + numericPrice;
+
+    // 5. Create new loan (note: we keep same fields you used)
     const newLoan = await Loans.create({
       productId,
       customerId,
@@ -36,25 +39,52 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       status: "Y",
     });
 
+    // 6. Populate product and customer details
     const populatedLoan = await Loans.findById(newLoan._id)
       .populate<{ productId: IProducts }>("productId")
       .populate("customerId")
       .lean();
 
+    // 7. Defensive: ensure populatedLoan exists
+    if (!populatedLoan) {
+      res.status(500).json({ success: false, message: "Failed to fetch created loan" });
+      return;
+    }
+
+    // 8. Flatten loan for response
     const flattenedLoan = {
       _id: populatedLoan._id,
       productId: populatedLoan.productId?._id || null,
       productName: populatedLoan.productId?.productName || null,
-      productCategory: populatedLoan.productId?.quantity || null,
-      customerId: (populatedLoan.customerId as any)?.customerName || null,
+      productQuantity: populatedLoan.productId?.quantity || null,
+      customerId: (populatedLoan.customerId as any)?._id || null,
+      customerName: (populatedLoan.customerId as any)?.customerName || null,
       price: populatedLoan.price,
+      receivable: populatedLoan.receivable ?? 0,
       total: populatedLoan.total,
       date: populatedLoan.date,
       status: populatedLoan.status,
       createdAt: populatedLoan.createdAt,
     };
 
-    res.status(200).json({...flattenedLoan});
+    // 9. Compute receivable SUM from existing loan.receivable fields (NOT price)
+    const existingReceivableSum = customerLoans.reduce(
+      (sum, loan) => sum + (Number(loan.receivable) || 0),
+      0
+    );
+
+    // include new loan's receivable (if any) — do NOT include price
+    const newReceivable = Number(populatedLoan.receivable) || 0;
+    const receivable = existingReceivableSum + newReceivable;
+
+    console.log("Receivable total (sum of receivable fields):", receivable);
+
+    // 10. Send response
+    res.status(200).json({
+      total,
+      receivable,
+      loan: flattenedLoan,
+    });
   } catch (e) {
     handleError(res, e);
   }
@@ -82,7 +112,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       _id: loan._id,
       productId: loan.productId?._id || null,
       productName: loan.productId?.productName || null,
-      productCategory: loan.productId?.quantity || null,
+      productQuantity: loan.productId?.quantity || null,
       customerId: loan.customerId?._id || null,
       customerName: (loan.customerId as any)?.customerName || null,
       price: loan.price,
@@ -187,10 +217,11 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       _id: finalLoan._id,
       productId: finalLoan.productId?._id || null,
       productName: (finalLoan.productId as any)?.productName || null,
-      productCategory: (finalLoan.productId as any)?.quantity || null,
+      productQuantity: (finalLoan.productId as any)?.quantity || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,
+      receivable: finalLoan.receivable,
       total: finalLoan.total,
       date: finalLoan.date,
       status: finalLoan.status,
@@ -261,7 +292,7 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
       _id: finalLoan._id,
       productId: finalLoan.productId?._id || null,
       productName: (finalLoan.productId as any)?.productName || null,
-      productCategory: (finalLoan.productId as any)?.quantity || null,
+      productQuantity: (finalLoan.productId as any)?.quantity || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,
