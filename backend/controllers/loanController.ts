@@ -116,14 +116,21 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       customerId: loan.customerId?._id || null,
       customerName: (loan.customerId as any)?.customerName || null,
       price: loan.price,
+      receivable: loan.receivable,
       total: loan.total,
       date: loan.date,
       status: loan.status,
       createdAt: loan.createdAt,
     }));
 
+    const receivable = flattenedLoans.reduce(
+      (sum, loan) => sum + (Number(loan.receivable) || 0),
+      0
+    );
+
     res.status(200).json({
       total,
+      receivable,
       loans: flattenedLoans,
     });
   } catch (e) {
