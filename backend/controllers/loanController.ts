@@ -140,7 +140,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     }
 
-    const { productId, customerId, price, date } = req.body;
+    const { productId, customerId, price, date, receivable} = req.body;
     const requiredFields = ["productId", "customerId", "price", "date"];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     if (missingFields.length > 0) {
@@ -165,7 +165,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productId, customerId: newCustomerId, price: numericPrice, date },
+      { productId, customerId: newCustomerId, price: numericPrice, date, receivable },
       { new: true }
     );
 
@@ -228,7 +228,9 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       createdAt: finalLoan.createdAt,
     };
 
-    res.status(200).json({...flattenedLoan});
+    let total = flattenedLoan.total;
+
+    res.status(200).json({total, receivable, loans: flattenedLoan});
   } catch (e) {
     handleError(res, e);
   }
