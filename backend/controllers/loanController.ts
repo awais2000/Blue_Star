@@ -41,9 +41,15 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
     // 6. Populate product and customer details
     const populatedLoan = await Loans.findById(newLoan._id)
-      .populate<{ productId: IProducts }>("productId")
-      .populate("customerId")
-      .lean();
+    .populate<{ productId: IProducts }>({
+        path: "productId",
+        match: { status: "Y" },
+    })
+    .populate({
+        path: "customerId",
+        match: { status: "Y" },
+    })
+    .lean();
 
     // 7. Defensive: ensure populatedLoan exists
     if (!populatedLoan) {

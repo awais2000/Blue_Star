@@ -7,8 +7,8 @@ export interface IReceivable extends Document {
     customerId: mongoose.Types.ObjectId;
     date: Date;
     totalBalance: number;
-    paid: number;
-    total: number;
+    paidCash: number;
+    remainingCash: number;
     status: string;
     createdAt: Date;
 };
@@ -28,8 +28,8 @@ const ReceivableScehma = new mongoose.Schema({
   },
   date: Date,
   totalBalance: Number,
-  paid: Number,
-  total: Number,
+  paidCash: Number,
+  remainingCash: Number,
   status: { type: String, default: "Y" },
 }, { timestamps: true });
 
