@@ -6,66 +6,56 @@ import { IProducts } from "../models/Products";
 
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
-    const { productId, customerId, price, date } = req.body;
+    const { productName, customerId, price, quantity, date } = req.body;
 
-    // 1. Validate required fields
-    const requiredFields = ["productId", "customerId", "price", "date"];
+    const requiredFields = ["productName", "customerId", "price", "date", "quantity"];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     if (missingFields.length > 0) {
       res.status(400).send(`${missingFields.join(", ")} is required`);
       return;
     }
 
-    // 2. Validate price
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
       res.status(400).send("Invalid price: must be a number");
       return;
     }
 
-    // 3. Get all active loans for the customer
     const customerLoans = await Loans.find({ status: "Y", customerId });
 
-    // 4. Compute current total (existing prices + new price) as you already had
-    const total = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) + numericPrice;
+    const total =
+      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
+      numericPrice;
 
-    // 5. Create new loan (note: we keep same fields you used)
     const newLoan = await Loans.create({
-      productId,
+      productName, // simple string now
       customerId,
       price: numericPrice,
+      quantity,
       date,
       total,
       status: "Y",
     });
 
-    // 6. Populate product and customer details
     const populatedLoan = await Loans.findById(newLoan._id)
-    .populate<{ productId: IProducts }>({
-        path: "productId",
-        match: { status: "Y" },
-    })
-    .populate({
+      .populate({
         path: "customerId",
         match: { status: "Y" },
-    })
-    .lean();
+      })
+      .lean();
 
-    // 7. Defensive: ensure populatedLoan exists
     if (!populatedLoan) {
       res.status(500).json({ success: false, message: "Failed to fetch created loan" });
       return;
     }
 
-    // 8. Flatten loan for response
     const flattenedLoan = {
       _id: populatedLoan._id,
-      productId: populatedLoan.productId?._id || null,
-      productName: populatedLoan.productId?.productName || null,
-      productQuantity: populatedLoan.productId?.quantity || null,
+      productName: populatedLoan.productName || null,
       customerId: (populatedLoan.customerId as any)?._id || null,
       customerName: (populatedLoan.customerId as any)?.customerName || null,
       price: populatedLoan.price,
+      quantity: populatedLoan.quantity,
       receivable: populatedLoan.receivable ?? 0,
       total: populatedLoan.total,
       date: populatedLoan.date,
@@ -73,61 +63,66 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       createdAt: populatedLoan.createdAt,
     };
 
-    // 9. Compute receivable SUM from existing loan.receivable fields (NOT price)
     const existingReceivableSum = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
 
-    // include new loan's receivable (if any) — do NOT include price
     const newReceivable = Number(populatedLoan.receivable) || 0;
     const receivable = existingReceivableSum + newReceivable;
 
-    console.log("Receivable total (sum of receivable fields):", receivable);
-
-    // 10. Send response
     res.status(200).json({
       total,
       receivable,
       loan: flattenedLoan,
     });
+
   } catch (e) {
     handleError(res, e);
   }
 };
 
 
+
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
-    const { id } = req.params; // this is customerId
+    const { id } = req.params; // customerId
 
     const loans = await Loans.find({ status: "Y", customerId: id })
       .sort({ createdAt: 1 })
-      .populate<{ productId: IProducts }>("productId")
-      .populate("customerId")
+      .populate("customerId") // only works if schema uses ObjectId ref
       .lean();
 
     if (!loans || loans.length === 0) {
-      res.status(200).json({ message: "No loan details found!", total: 0, loans: [] });
+      res.status(200).json({
+        message: "No loan details found!",
+        total: 0,
+        receivable: 0,
+        loans: [],
+      });
       return;
     }
 
     const total = Number(loans[loans.length - 1].total) || 0;
 
-    const flattenedLoans = loans.map((loan) => ({
-      _id: loan._id,
-      productId: loan.productId?._id || null,
-      productName: loan.productId?.productName || null,
-      productQuantity: loan.productId?.quantity || null,
-      customerId: loan.customerId?._id || null,
-      customerName: (loan.customerId as any)?.customerName || null,
-      price: loan.price,
-      receivable: loan.receivable,
-      total: loan.total,
-      date: loan.date,
-      status: loan.status,
-      createdAt: loan.createdAt,
-    }));
+    const flattenedLoans = loans.map((loan) => {
+      const customer =
+        typeof loan.customerId === "object" ? loan.customerId : { _id: loan.customerId };
+
+      return {
+        _id: loan._id,
+        productName: loan.productName || null,
+        customerId: customer?._id || null,
+        customerName: (customer as any)?.customerName || null,
+        price: loan.price ?? 0,
+        quantity: loan.quantity ?? 0, // ensure numeric
+        receivable: loan.receivable ?? 0,
+        total: loan.total ?? 0,
+        date: loan.date,
+        status: loan.status,
+        createdAt: loan.createdAt,
+      };
+    });
 
     const receivable = flattenedLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
@@ -153,8 +148,8 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     }
 
-    const { productId, customerId, price, date, receivable} = req.body;
-    const requiredFields = ["productId", "customerId", "price", "date"];
+    const { productName, customerId, price, date, receivable} = req.body;
+    const requiredFields = ["productName", "customerId", "price", "date"];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     if (missingFields.length > 0) {
       res.status(400).json({ message: "Bad Request! Missing: " + missingFields.join(", ") });
@@ -178,7 +173,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productId, customerId: newCustomerId, price: numericPrice, date, receivable },
+      { productName, customerId: newCustomerId, price: numericPrice, date, receivable },
       { new: true }
     );
 
@@ -217,7 +212,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     await recalcTotalsForCustomer(newCustomerId);
 
     const finalLoan = await Loans.findById(id)
-      .populate("productId")
+      .populate("productName")
       .populate("customerId")
       .lean();
 
@@ -228,9 +223,8 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     const flattenedLoan = {
       _id: finalLoan._id,
-      productId: finalLoan.productId?._id || null,
-      productName: (finalLoan.productId as any)?.productName || null,
-      productQuantity: (finalLoan.productId as any)?.quantity || null,
+      productName: (finalLoan.productName as any)?.productName || null,
+      productQuantity: (finalLoan.productName as any)?.quantity || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,
@@ -294,7 +288,7 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
     }
 
     const finalLoan = await Loans.findById(id)
-      .populate("productId")
+      .populate("productName")
       .populate("customerId")
       .lean();
 
@@ -305,9 +299,8 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
 
     const flattenedLoan = {
       _id: finalLoan._id,
-      productId: finalLoan.productId?._id || null,
-      productName: (finalLoan.productId as any)?.productName || null,
-      productQuantity: (finalLoan.productId as any)?.quantity || null,
+      productName: (finalLoan.productName as any)?.productName || null,
+      productQuantity: (finalLoan.productName as any)?.quantity || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,

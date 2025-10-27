@@ -3,9 +3,10 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 
 
 export interface ILoans extends Document {
-    productId:  mongoose.Types.ObjectId;
+    productName:  string;
     customerId: mongoose.Types.ObjectId;
     price: number;
+    quantity: number;
     receivable: number;
     date: Date;
     total: number
@@ -16,17 +17,14 @@ export interface ILoans extends Document {
 
 
 const LoansScehma = new mongoose.Schema({
-  productId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Products",
-    required: true,
-  },
+  productName: String,
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Customers",
     required: true,
   },
   price: Number,
+  quantity: Number,
   receivable: Number,
   date: Date,
   total: Number,
