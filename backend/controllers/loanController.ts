@@ -148,9 +148,10 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     }
 
-    const { productName, customerId, price, date, receivable} = req.body;
-    const requiredFields = ["productName", "customerId", "price", "date"];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
+    const { productName, customerId, price, quantity, date, receivable } = req.body;
+
+    const requiredFields = ["productName", "customerId", "price", "quantity", "date"];
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
     if (missingFields.length > 0) {
       res.status(400).json({ message: "Bad Request! Missing: " + missingFields.join(", ") });
       return;
@@ -173,7 +174,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productName, customerId: newCustomerId, price: numericPrice, date, receivable },
+      { productName, customerId: newCustomerId, price: numericPrice, quantity, date, receivable },
       { new: true }
     );
 
@@ -211,10 +212,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     await recalcTotalsForCustomer(newCustomerId);
 
-    const finalLoan = await Loans.findById(id)
-      .populate("productName")
-      .populate("customerId")
-      .lean();
+    const finalLoan = await Loans.findById(id).populate("customerId").lean();
 
     if (!finalLoan) {
       res.status(404).json({ message: "Updated loan not found after update!" });
@@ -223,11 +221,11 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     const flattenedLoan = {
       _id: finalLoan._id,
-      productName: (finalLoan.productName as any)?.productName || null,
-      productQuantity: (finalLoan.productName as any)?.quantity || null,
+      productName: finalLoan.productName || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,
+      quantity: finalLoan.quantity,
       receivable: finalLoan.receivable,
       total: finalLoan.total,
       date: finalLoan.date,
@@ -235,13 +233,19 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       createdAt: finalLoan.createdAt,
     };
 
-    let total = flattenedLoan.total;
+    const total = flattenedLoan.total ?? 0;
 
-    res.status(200).json({total, receivable, loans: flattenedLoan});
+    res.status(200).json({
+      message: "Loan updated successfully!",
+      total,
+      receivable: flattenedLoan.receivable ?? 0,
+      loan: flattenedLoan,
+    });
   } catch (e) {
     handleError(res, e);
   }
 };
+
 
 
 export const deleteLoan = async (req: express.Request, res: express.Response): Promise<void> => {
@@ -288,7 +292,6 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
     }
 
     const finalLoan = await Loans.findById(id)
-      .populate("productName")
       .populate("customerId")
       .lean();
 
@@ -299,8 +302,8 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
 
     const flattenedLoan = {
       _id: finalLoan._id,
-      productName: (finalLoan.productName as any)?.productName || null,
-      productQuantity: (finalLoan.productName as any)?.quantity || null,
+      productName: finalLoan.productName,
+      quantity: finalLoan.quantity,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
       price: finalLoan.price,
