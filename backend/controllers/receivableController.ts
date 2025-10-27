@@ -9,7 +9,7 @@ import Loans from "../models/Loans";
 
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { productId, customerId, date, paidCash } = req.body;
+    const { productName, customerId, date, paidCash } = req.body;
 
     // Validate required fields
     const requiredFields = ["customerId", "date", "paidCash"];
@@ -25,29 +25,26 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 1) Get customer's active loans and compute totalBalance (sum of prices)
+    // 1️⃣ Get customer's active loans
     const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
     if (!customerLoans || customerLoans.length === 0) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    const totalBalance = customerLoans.reduce(
-      (sum, loan) => sum + (Number(loan.price) || 0),
-      0
-    );
+    const totalBalance = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0);
 
-    // 2) Sum previous payments (already recorded in Receivables for this customer)
+    // 2️⃣ Sum previous receivables
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce((s, r) => s + (Number(r.paidCash) || 0), 0);
 
-    // 3) Compute cumulative paid and remaining cash
+    // 3️⃣ Compute remaining
     const totalPaid = prevPaidSum + numericPaid;
-    const remainingCash = Math.max(0, totalBalance - totalPaid); // cap at 0
+    const remainingCash = Math.max(0, totalBalance - totalPaid);
 
-    // 4) Create the new Receivable entry
+    // 4️⃣ Create new receivable
     const newReceivable = await Receivables.create({
-      productId: productId || null,
+      productName: productName || null,
       customerId,
       date,
       totalBalance,
@@ -56,56 +53,37 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       status: "Y",
     });
 
-    // 5) Update loans' total to reflect the new remaining balance (user asked to update loan table)
-    //    (This will set every active loan total for this customer to the new remainingCash,
-    //     same approach you used earlier.)
+    // ✅ Populate the customer so we can return name
+    const populatedReceivable = await Receivables.findById(newReceivable._id)
+      .populate("customerId")
+      .lean();
+
+    // 5️⃣ Update loan totals
     const bulkOps = customerLoans.map((loan) => ({
       updateOne: {
         filter: { _id: loan._id },
         update: { $set: { total: remainingCash } },
       },
     }));
-
     if (bulkOps.length > 0) {
       await Loans.bulkWrite(bulkOps);
     }
 
-    // 6) (Optional) fetch updated loans to return in response (flattened)
-    const updatedLoans = await Loans.find({ status: "Y", customerId })
-      .sort({ date: 1, _id: 1 })
-      .populate<{ productId: IProducts }>("productId")
-      .populate("customerId")
-      .lean();
-
-    const flattenedLoans = updatedLoans.map((loan) => ({
-      _id: loan._id,
-      productId: loan.productId?._id || null,
-      productName: (loan.productId as any)?.productName || null,
-      customerId: (loan.customerId as any)?._id || null,
-      customerName: (loan.customerId as any)?.customerName || null,
-      price: loan.price,
-      total: loan.total,
-      date: loan.date,
-      status: loan.status,
-      createdAt: loan.createdAt,
-    }));
-
-    // 7) Flatten receivable for response
+    // 6️⃣ Flatten for response
     const flattenedReceivable = {
-      _id: newReceivable._id,
-      productId: newReceivable.productId || null,
-      customerId: newReceivable.customerId,
-      date: newReceivable.date,
-      totalBalance: newReceivable.totalBalance,
-      paidCash: newReceivable.paidCash,
-      remainingCash: newReceivable.remainingCash,
-      status: newReceivable.status,
-      createdAt: newReceivable.createdAt,
+      _id: populatedReceivable?._id,
+      productName: populatedReceivable?.productName,
+      customerId: populatedReceivable?.customerId?._id || null,
+      customerName: (populatedReceivable?.customerId as any)?.customerName || null,
+      date: populatedReceivable?.date,
+      totalBalance: populatedReceivable?.totalBalance,
+      paidCash: populatedReceivable?.paidCash,
+      remainingCash: populatedReceivable?.remainingCash,
+      status: populatedReceivable?.status,
+      createdAt: populatedReceivable?.createdAt,
     };
 
-    res.status(200).json({
-      ...flattenedReceivable
-    });
+    res.status(200).json(flattenedReceivable);
   } catch (e) {
     handleError(res, e);
   }

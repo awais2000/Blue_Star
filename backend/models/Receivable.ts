@@ -3,7 +3,7 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 
 
 export interface IReceivable extends Document {
-    productId:  mongoose.Types.ObjectId;
+    productName: string;
     customerId: mongoose.Types.ObjectId;
     date: Date;
     totalBalance: number;
@@ -16,9 +16,8 @@ export interface IReceivable extends Document {
 
 
 const ReceivableScehma = new mongoose.Schema({
-  productId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Products",
+  productName: {
+    type: String,
     required: true,
   },
   customerId: {
