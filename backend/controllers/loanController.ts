@@ -16,24 +16,27 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     }
 
     const numericPrice = Number(price);
-    if (isNaN(numericPrice)) {
-      res.status(400).send("Invalid price: must be a number");
+    const numericQuantity = Number(quantity);
+    if (isNaN(numericPrice) || isNaN(numericQuantity)) {
+      res.status(400).send("Invalid price or quantity: both must be numbers");
       return;
     }
 
+    const loanTotal = numericPrice * numericQuantity;
+
     const customerLoans = await Loans.find({ status: "Y", customerId });
 
-    const total =
-      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0) +
-      numericPrice;
+    const overallTotal =
+      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) * (Number(loan.quantity) || 1)), 0) +
+      loanTotal;
 
     const newLoan = await Loans.create({
-      productName, // simple string now
+      productName,
       customerId,
       price: numericPrice,
-      quantity,
+      quantity: numericQuantity,
       date,
-      total,
+      total: overallTotal,
       status: "Y",
     });
 
@@ -56,8 +59,9 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       customerName: (populatedLoan.customerId as any)?.customerName || null,
       price: populatedLoan.price,
       quantity: populatedLoan.quantity,
+      loanTotal, // added: price × quantity for this product
       receivable: populatedLoan.receivable ?? 0,
-      total: populatedLoan.total,
+      total: populatedLoan.total, // cumulative total for the customer
       date: populatedLoan.date,
       status: populatedLoan.status,
       createdAt: populatedLoan.createdAt,
@@ -67,12 +71,11 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
-
     const newReceivable = Number(populatedLoan.receivable) || 0;
     const receivable = existingReceivableSum + newReceivable;
 
     res.status(200).json({
-      total,
+      total: overallTotal,
       receivable,
       loan: flattenedLoan,
     });
@@ -81,7 +84,6 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     handleError(res, e);
   }
 };
-
 
 
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
