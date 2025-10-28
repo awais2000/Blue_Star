@@ -6,7 +6,6 @@ import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
 
-
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -25,26 +24,31 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 2️⃣ Get all active loans
-    const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
-    if (!customerLoans || customerLoans.length === 0) {
+    // 2️⃣ Fetch all active loans for the customer
+    const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
+    if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    // 3️⃣ Get the latest total (the cumulative total from addLoan)
-    const latestLoan = customerLoans[customerLoans.length - 1];
-    const totalBalance = Number(latestLoan.total) || 0;
+    // 3️⃣ Compute the original totalBalance (sum of all loan prices)
+    const totalBalance = customerLoans.reduce(
+      (sum, loan) => sum + (Number(loan.price) || 0),
+      0
+    );
 
-    // 4️⃣ Sum previous receivables (total already paid so far)
+    // 4️⃣ Get all previous payments
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
-    const prevPaidSum = prevReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
+    const prevPaidSum = prevReceivables.reduce(
+      (sum, r) => sum + (Number(r.paidCash) || 0),
+      0
+    );
 
-    // 5️⃣ Compute new total paid and remaining cash
+    // 5️⃣ Compute cumulative paid and remaining amount
     const totalPaid = prevPaidSum + numericPaid;
     const remainingCash = Math.max(0, totalBalance - totalPaid);
 
-    // 6️⃣ Create new receivable record
+    // 6️⃣ Create new receivable entry
     const newReceivable = await Receivables.create({
       customerId,
       date,
@@ -59,13 +63,18 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       .populate("customerId")
       .lean();
 
-    // 8️⃣ Update loan table totals to reflect new remaining balance
+    // 8️⃣ Update loan records ( Do NOT overwrite total loan value)
     await Loans.updateMany(
       { customerId, status: "Y" },
-      { $set: { total: remainingCash, receivable: totalPaid} }
+      {
+        $set: {
+          receivable: totalPaid,     // how much has been paid so far
+          remainingCash: remainingCash, // new outstanding balance
+        },
+      }
     );
 
-    // 9️⃣ Flatten response
+    // 9️⃣ Response formatting
     const flattenedReceivable = {
       _id: populatedReceivable?._id,
       customerId: populatedReceivable?.customerId?._id || null,
@@ -83,6 +92,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
+
 
 
 
@@ -134,5 +144,5 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
 
 
 export const updateReceivableData = async (req: Request, res: Response): Promise<void> => {
-    
+
 }
