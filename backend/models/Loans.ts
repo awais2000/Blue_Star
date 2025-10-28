@@ -10,7 +10,7 @@ export interface ILoans extends Document {
     receivable: number;
     date: Date;
     total: number
-    status: string;
+    status: string; 
     createdAt: Date;
 };
 

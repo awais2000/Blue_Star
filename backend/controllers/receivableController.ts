@@ -11,6 +11,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
   try {
     const { customerId, date, paidCash } = req.body;
 
+    // 1️⃣ Validate fields
     const requiredFields = ["customerId", "date", "paidCash"];
     const missingFields = requiredFields.filter((f) => !req.body[f]);
     if (missingFields.length > 0) {
@@ -24,20 +25,26 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
+    // 2️⃣ Get all active loans
+    const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans || customerLoans.length === 0) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    const totalBalance = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0);
+    // 3️⃣ Get the latest total (the cumulative total from addLoan)
+    const latestLoan = customerLoans[customerLoans.length - 1];
+    const totalBalance = Number(latestLoan.total) || 0;
 
+    // 4️⃣ Sum previous receivables (total already paid so far)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
-    const prevPaidSum = prevReceivables.reduce((s, r) => s + (Number(r.paidCash) || 0), 0);
+    const prevPaidSum = prevReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
 
+    // 5️⃣ Compute new total paid and remaining cash
     const totalPaid = prevPaidSum + numericPaid;
     const remainingCash = Math.max(0, totalBalance - totalPaid);
 
+    // 6️⃣ Create new receivable record
     const newReceivable = await Receivables.create({
       customerId,
       date,
@@ -47,20 +54,18 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       status: "Y",
     });
 
+    // 7️⃣ Populate customer info
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
 
-    const bulkOps = customerLoans.map((loan) => ({
-      updateOne: {
-        filter: { _id: loan._id },
-        update: { $set: { total: remainingCash } },
-      },
-    }));
-    if (bulkOps.length > 0) {
-      await Loans.bulkWrite(bulkOps);
-    }
+    // 8️⃣ Update loan table totals to reflect new remaining balance
+    await Loans.updateMany(
+      { customerId, status: "Y" },
+      { $set: { total: remainingCash } }
+    );
 
+    // 9️⃣ Flatten response
     const flattenedReceivable = {
       _id: populatedReceivable?._id,
       customerId: populatedReceivable?.customerId?._id || null,
