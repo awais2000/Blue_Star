@@ -27,18 +27,23 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     const customerLoans = await Loans.find({ status: "Y", customerId });
 
     const overallTotal =
-      customerLoans.reduce((sum, loan) => sum + (Number(loan.price) * (Number(loan.quantity) || 1)), 0) +
-      loanTotal;
+    customerLoans.reduce(
+        (sum, loan) => sum + (Number(loan.price) * (Number(loan.quantity) || 1)),
+        0
+    ) + loanTotal;
 
+    // ✅ Keep the original price per unit, and store loanTotal separately
     const newLoan = await Loans.create({
-      productName,
-      customerId,
-      price: numericPrice,
-      quantity: numericQuantity,
-      date,
-      total: overallTotal,
-      status: "Y",
+    productName,
+    customerId,
+    price: numericPrice,          // per-unit price
+    quantity: numericQuantity,    // number of units
+    date,
+    loanTotal,                    // total for this product
+    total: overallTotal,          // cumulative total for all loans
+    status: "Y",
     });
+
 
     const populatedLoan = await Loans.findById(newLoan._id)
       .populate({
@@ -53,19 +58,19 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     }
 
     const flattenedLoan = {
-      _id: populatedLoan._id,
-      productName: populatedLoan.productName || null,
-      customerId: (populatedLoan.customerId as any)?._id || null,
-      customerName: (populatedLoan.customerId as any)?.customerName || null,
-      price: populatedLoan.price,
-      quantity: populatedLoan.quantity,
-      loanTotal, // added: price × quantity for this product
-      receivable: populatedLoan.receivable ?? 0,
-      total: populatedLoan.total, // cumulative total for the customer
-      date: populatedLoan.date,
-      status: populatedLoan.status,
-      createdAt: populatedLoan.createdAt,
-    };
+        _id: populatedLoan._id,
+        customerId: (populatedLoan.customerId as any)?._id || null,
+        customerName: (populatedLoan.customerId as any)?.customerName || null,
+        price: populatedLoan.price,          // per-unit price (20)
+        quantity: populatedLoan.quantity,    // e.g., 4
+        loanTotal: (Number(populatedLoan.price) * (Number(populatedLoan.quantity) || 1)),  // computed total for this loan
+        receivable: populatedLoan.receivable ?? 0,
+        total: populatedLoan.total,
+        date: populatedLoan.date,
+        status: populatedLoan.status,
+        createdAt: populatedLoan.createdAt,
+        };
+
 
     const existingReceivableSum = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),

@@ -62,7 +62,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     // 8️⃣ Update loan table totals to reflect new remaining balance
     await Loans.updateMany(
       { customerId, status: "Y" },
-      { $set: { total: remainingCash, receivable: paidCash} }
+      { $set: { total: remainingCash, receivable: totalPaid} }
     );
 
     // 9️⃣ Flatten response
