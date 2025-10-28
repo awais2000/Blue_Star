@@ -10,7 +10,6 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
   try {
     const { customerId, date, paidCash } = req.body;
 
-    // 1️⃣ Validate fields
     const requiredFields = ["customerId", "date", "paidCash"];
     const missingFields = requiredFields.filter((f) => !req.body[f]);
     if (missingFields.length > 0) {
@@ -24,31 +23,26 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 2️⃣ Fetch all active loans for the customer
     const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    // 3️⃣ Compute the original totalBalance (sum of all loan prices)
     const totalBalance = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.price) || 0),
       0
     );
 
-    // 4️⃣ Get all previous payments
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce(
       (sum, r) => sum + (Number(r.paidCash) || 0),
       0
     );
 
-    // 5️⃣ Compute cumulative paid and remaining amount
     const totalPaid = prevPaidSum + numericPaid;
     const remainingCash = Math.max(0, totalBalance - totalPaid);
 
-    // 6️⃣ Create new receivable entry
     const newReceivable = await Receivables.create({
       customerId,
       date,
@@ -58,23 +52,20 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       status: "Y",
     });
 
-    // 7️⃣ Populate customer info
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
 
-    // 8️⃣ Update loan records ( Do NOT overwrite total loan value)
     await Loans.updateMany(
       { customerId, status: "Y" },
       {
         $set: {
           receivable: totalPaid,     // how much has been paid so far
-          remainingCash: remainingCash, // new outstanding balance
+          total: remainingCash, // new outstanding balance
         },
       }
     );
 
-    // 9️⃣ Response formatting
     const flattenedReceivable = {
       _id: populatedReceivable?._id,
       customerId: populatedReceivable?.customerId?._id || null,
