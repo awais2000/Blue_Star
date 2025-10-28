@@ -83,3 +83,56 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
+
+
+
+export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params; 
+
+    if (!id) {
+      res.status(400).json({ message: "Customer ID is required" });
+      return;
+    }
+
+    const receivables = await Receivables.find({ customerId: id, status: "Y" })
+      .sort({ createdAt: 1 })
+      .populate("customerId")
+      .lean();
+
+    if (!receivables || receivables.length === 0) {
+      res.status(404).json({ message: "No receivable records found for this customer." });
+      return;
+    }
+
+    const flattenedData = receivables.map((r) => ({
+      _id: r._id,
+      customerId: r.customerId?._id || null,
+      customerName: (r.customerId as any)?.customerName || null,
+      date: r.date,
+      totalBalance: r.totalBalance,
+      paidCash: r.paidCash,
+      remainingCash: r.remainingCash,
+      status: r.status,
+      createdAt: r.createdAt,
+    }));
+
+    const totalPaid = receivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
+    const totalBalance = receivables[receivables.length - 1].totalBalance;
+
+    res.status(200).json({
+      totalPaid,
+      totalBalance: totalBalance,
+      receivables: flattenedData,
+    });
+
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+
+
+export const updateReceivableData = async (req: Request, res: Response): Promise<void> => {
+    
+}
