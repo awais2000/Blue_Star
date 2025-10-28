@@ -24,6 +24,8 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
     const loanTotal = numericPrice * numericQuantity;
 
+    const anotherTotal  = numericPrice * numericQuantity;
+
     const customerLoans = await Loans.find({ status: "Y", customerId });
 
     const overallTotal =
@@ -36,7 +38,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     const newLoan = await Loans.create({
     productName,
     customerId,
-    price: numericPrice,          // per-unit price
+    price: anotherTotal,          // per-unit price
     quantity: numericQuantity,    // number of units
     date,
     loanTotal,                    // total for this product
