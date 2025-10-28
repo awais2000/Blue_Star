@@ -134,6 +134,99 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
 
 
 
-export const updateReceivableData = async (req: Request, res: Response): Promise<void> => {
+export const updateReceivable = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params; // Receivable ID
+    const { customerId, date, paidCash } = req.body;
 
-}
+    if (!id) {
+      res.status(400).json({ message: "Receivable ID is required in params" });
+      return;
+    }
+
+    const requiredFields = ["customerId", "date", "paidCash"];
+    const missingFields = requiredFields.filter((f) => !req.body[f]);
+    if (missingFields.length > 0) {
+      res.status(400).json({ message: `${missingFields.join(", ")} is required` });
+      return;
+    }
+
+    const numericPaid = Number(paidCash);
+    if (isNaN(numericPaid) || numericPaid < 0) {
+      res.status(400).json({ message: "Invalid paidCash value — must be a non-negative number" });
+      return;
+    }
+
+    const existingReceivable = await Receivables.findById(id).lean();
+    if (!existingReceivable) {
+      res.status(404).json({ message: "Receivable not found!" });
+      return;
+    }
+
+    const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
+    if (!customerLoans.length) {
+      res.status(404).json({ message: "No active loans found for this customer." });
+      return;
+    }
+
+    const totalBalance = customerLoans.reduce(
+      (sum, loan) => sum + (Number(loan.price) || 0),
+      0
+    );
+
+    const prevReceivables = await Receivables.find({
+      customerId,
+      status: "Y",
+      _id: { $ne: id },
+    }).lean();
+
+    const prevPaidSum = prevReceivables.reduce(
+      (sum, r) => sum + (Number(r.paidCash) || 0),
+      0
+    );
+
+    const totalPaid = prevPaidSum + numericPaid;
+    const remainingCash = Math.max(0, totalBalance - totalPaid);
+
+    const updatedReceivable = await Receivables.findByIdAndUpdate(
+      id,
+      {
+        customerId,
+        date,
+        totalBalance,
+        paidCash: numericPaid,
+        remainingCash,
+        status: "Y",
+      },
+      { new: true }
+    )
+      .populate("customerId")
+      .lean();
+
+    await Loans.updateMany(
+      { customerId, status: "Y" },
+      {
+        $set: {
+          receivable: totalPaid, // total paid till now
+          total: remainingCash,  // new outstanding loan balance
+        },
+      }
+    );
+
+    const flattenedReceivable = {
+      _id: updatedReceivable?._id,
+      customerId: updatedReceivable?.customerId?._id || null,
+      customerName: (updatedReceivable?.customerId as any)?.customerName || null,
+      date: updatedReceivable?.date,
+      totalBalance: updatedReceivable?.totalBalance,
+      paidCash: updatedReceivable?.paidCash,
+      remainingCash: updatedReceivable?.remainingCash,
+      status: updatedReceivable?.status,
+      createdAt: updatedReceivable?.createdAt,
+    };
+
+    res.status(200).json(flattenedReceivable);
+  } catch (e) {
+    handleError(res, e);
+  }
+};

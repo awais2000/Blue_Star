@@ -14,7 +14,7 @@ import { deleteRequest, resetCartData } from "../controllers/deleteController";
 import { addPrintConfig, getPrintConfig, } from "../controllers/receiptController";
 import { fcreateSaleData, fgetSalesData, fgetSalesDataById, fprintSalesData } from "../controllers/testSalesController";
 import { addLoan, deleteLoan, getLoanById, updateLoan } from "../controllers/loanController";
-import { addReceivable, getReceivableDataById } from "../controllers/receivableController";
+import { addReceivable, getReceivableDataById, updateReceivable } from "../controllers/receivableController";
 
 
 export default (app: Application): void => {
@@ -83,6 +83,8 @@ export default (app: Application): void => {
     app.post('/addReceivable', addReceivable);
 
     app.get('/getReceivableDataById/:id', getReceivableDataById);
+
+    app.put('/updateReceivable/:id', updateReceivable);
 
     //for testing data:
     app.post('/fcreateSaleData', fcreateSaleData);
