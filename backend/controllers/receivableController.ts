@@ -46,7 +46,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      totalBalance: remainingCash,
+      totalBalance,
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
