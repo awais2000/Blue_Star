@@ -217,7 +217,6 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         price: loan.price ?? 0,
         quantity: loan.quantity ?? 0,
         receivable: loan.receivable ?? 0,
-        tempTotal: loan.tempTotal ?? 0,
         total: loan.total ?? 0,
         date: loan.date,
         status: loan.status,
@@ -235,21 +234,6 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
 
     console.log("last loan", lastLoanId);
     console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", total);
-
-    // Update tempTotal for all loans (if that's what you need)
-    const bulkOps = loans.map(loan => ({
-    updateOne: {
-        filter: { _id: loan._id },
-        update: { 
-        tempTotal: (Number(loan.total) || 0) - receivable 
-        }
-    }
-    }));
-
-    if (bulkOps.length > 0) {
-    await Loans.bulkWrite(bulkOps);
-    console.log(`Updated tempTotal for ${bulkOps.length} loans`);
-    }
 
     res.status(200).json({
       total,
