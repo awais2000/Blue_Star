@@ -187,6 +187,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 };
 
 
+
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { id } = req.params; // customerId
@@ -200,7 +201,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       res.status(200).json({
         message: "No loan details found!",
         total: 0,
-        receiveAmount: 0, // Renamed from 'receivable' for clarity
+        receivable: 0,
         loans: [],
       });
       return;
@@ -215,40 +216,37 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         productName: loan.productName || null,
         customerId: customer?._id || null,
         customerName: (customer as any)?.customerName || null,
-        rate: loan.rate ?? 0,
-        price: loan.price ?? 0, // Price for this individual loan item
+        price: loan.price ?? 0,
         quantity: loan.quantity ?? 0,
-        receivable: loan.receivable ?? 0, // Amount received against this individual loan item
-        total: loan.total ?? 0, // Cumulative total at the time this loan was created/last updated
+        receivable: loan.receivable ?? 0,
+        total: loan.total ?? 0,
         date: loan.date,
         status: loan.status,
         createdAt: loan.createdAt,
       };
     });
 
-    // 1. Get the latest 'total' from the latest loan record
-    // This 'total' field directly represents the customer's current outstanding balance.
-    const currentOverallOutstanding = Number(loans[loans.length - 1].total) || 0;
-
-    // 2. Sum the 'receivable' amounts from all loans to get the total amount received against items
-    const totalReceivedAgainstLoans = flattenedLoans.reduce(
+    const receivable = flattenedLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
 
-    console.log("last loan", loans[loans.length - 1]._id);
-    console.log("Current Overall Outstanding (Total):", currentOverallOutstanding);
-    console.log("Total Received Against Loans (Receive Amount):", totalReceivedAgainstLoans);
+    const currentOverallOutstanding = Number(loans[loans.length - 1].total) || 0;
+    const lastLoanId = loans[loans.length - 1]._id;
+
+    console.log("last loan", lastLoanId);
+    console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", currentOverallOutstanding);
 
     res.status(200).json({
-      total: currentOverallOutstanding, // This will be your "Total:" in Image 1
-      receiveAmount: totalReceivedAgainstLoans, // This will be your "Receive Amount:" in Image 1
+      total: currentOverallOutstanding,
+      receivable,
       loans: flattenedLoans,
     });
   } catch (e) {
     handleError(res, e);
   }
 };
+
 export const updateLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const id = req.params.id;
