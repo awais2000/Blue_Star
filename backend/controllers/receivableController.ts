@@ -106,10 +106,23 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       await Loans.bulkWrite(bulkOps);
     }
 
+    
     // 7) Populate receivable to return customerName
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
+
+    const receivableId =  populatedReceivable._id;
+    let totalBalanceRec = populatedReceivable.totalBalance;
+    
+      const updateTotalBalance = await Receivables.findByIdAndUpdate(
+      receivableId,
+      {
+        totalBalance: totalBalanceRec
+      },
+      { new: true }
+    );
+
 
     // 8) Flatten response
     const flattenedReceivable = {
