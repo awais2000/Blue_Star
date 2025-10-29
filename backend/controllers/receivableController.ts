@@ -94,7 +94,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
           filter: { _id: loan._id },
           update: {
             $set: {
-              total: newLoanTotal,
+              total: remainingCash,
               receivable: totalPaidForThisLoan,
             },
           },
