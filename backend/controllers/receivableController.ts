@@ -116,6 +116,14 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       .populate("customerId")
       .lean();
 
+    const updateTotalIn = Receivables.findByIdAndUpdate(
+      newReceivable._id,
+      {
+        totalBalance: lastLoan,
+      },
+      { new: true }
+    );
+
     // const receivableId =  populatedReceivable._id;
     // let totalBalanceRec = populatedReceivable.totalBalance;
     //   const updateTotalBalance = await Receivables.findByIdAndUpdate(
