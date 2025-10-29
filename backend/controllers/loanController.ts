@@ -4,6 +4,96 @@ import Loans from "../models/Loans";
 import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 
+// export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
+//   try {
+//     const { productName, customerId, price, quantity, date } = req.body;
+
+//     const requiredFields = ["productName", "customerId", "price", "date", "quantity"];
+//     const missingFields = requiredFields.filter(field => !req.body[field]);
+//     if (missingFields.length > 0) {
+//       res.status(400).send(`${missingFields.join(", ")} is required`);
+//       return;
+//     };
+
+//     const rate = Number(price);
+
+//     const numericPrice = Number(price);
+//     const numericQuantity = Number(quantity);
+//     if (isNaN(numericPrice) || isNaN(numericQuantity)) {
+//       res.status(400).send("Invalid price or quantity: both must be numbers");
+//       return;
+//     }
+
+//     const loanTotal = numericPrice * numericQuantity;
+
+//     const anotherTotal  = numericPrice * numericQuantity;
+
+//     const customerLoans = await Loans.find({ status: "Y", customerId });
+
+//     const overallTotal =
+//     customerLoans.reduce(
+//         (sum, loan) => sum + (Number(loan.price) * (Number(loan.quantity) || 1)),
+//         0
+//     ) + loanTotal;
+
+//     const newLoan = await Loans.create({
+//     productName,
+//     customerId,
+//     price: anotherTotal,   
+//     rate,       // per-unit price
+//     quantity: numericQuantity,    // number of units
+//     date,
+//     loanTotal,                    // total for this product
+//     total: overallTotal,          // cumulative total for all loans
+//     status: "Y",
+//     });
+
+
+//     const populatedLoan = await Loans.findById(newLoan._id)
+//       .populate({
+//         path: "customerId",
+//         match: { status: "Y" },
+//       })
+//       .lean();
+
+//     if (!populatedLoan) {
+//       res.status(500).json({ success: false, message: "Failed to fetch created loan" });
+//       return;
+//     }
+
+//     const flattenedLoan = {
+//         _id: populatedLoan._id,
+//         customerId: (populatedLoan.customerId as any)?._id || null,
+//         customerName: (populatedLoan.customerId as any)?.customerName || null,
+//         price: populatedLoan.price,          // per-unit price (20)
+//         quantity: populatedLoan.quantity,    // e.g., 4
+//         loanTotal: (Number(populatedLoan.price) * (Number(populatedLoan.quantity) || 1)),  // computed total for this loan
+//         receivable: populatedLoan.receivable ?? 0,
+//         total: populatedLoan.total,
+//         date: populatedLoan.date,
+//         status: populatedLoan.status,
+//         createdAt: populatedLoan.createdAt,
+//         };
+
+
+//     const existingReceivableSum = customerLoans.reduce(
+//       (sum, loan) => sum + (Number(loan.receivable) || 0),
+//       0
+//     );
+//     const newReceivable = Number(populatedLoan.receivable) || 0;
+//     const receivable = existingReceivableSum + newReceivable;
+
+//     res.status(200).json({
+//       total: overallTotal,
+//       receivable,
+//       loan: flattenedLoan,
+//     });
+
+//   } catch (e) {
+//     handleError(res, e);
+//   }
+// };
+
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -13,41 +103,40 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     if (missingFields.length > 0) {
       res.status(400).send(`${missingFields.join(", ")} is required`);
       return;
-    };
+    }
 
-    const rate = Number(price);
-
-    const numericPrice = Number(price);
+    const rate = Number(price); // per-unit rate
     const numericQuantity = Number(quantity);
-    if (isNaN(numericPrice) || isNaN(numericQuantity)) {
+
+    if (isNaN(rate) || isNaN(numericQuantity)) {
       res.status(400).send("Invalid price or quantity: both must be numbers");
       return;
     }
 
-    const loanTotal = numericPrice * numericQuantity;
+    // ✅ total price for this loan
+    const loanTotal = rate * numericQuantity;
 
-    const anotherTotal  = numericPrice * numericQuantity;
-
+    // Get all existing active loans for this customer
     const customerLoans = await Loans.find({ status: "Y", customerId });
 
+    // ✅ Cumulative total = all previous loans' price + new loanTotal
     const overallTotal =
-    customerLoans.reduce(
-        (sum, loan) => sum + (Number(loan.price) * (Number(loan.quantity) || 1)),
+      customerLoans.reduce(
+        (sum, loan) => sum + (Number(loan.price) || 0),
         0
-    ) + loanTotal;
+      ) + loanTotal;
 
+    // ✅ Create new loan
     const newLoan = await Loans.create({
-    productName,
-    customerId,
-    price: anotherTotal,   
-    rate,       // per-unit price
-    quantity: numericQuantity,    // number of units
-    date,
-    loanTotal,                    // total for this product
-    total: overallTotal,          // cumulative total for all loans
-    status: "Y",
+      productName,
+      customerId,
+      rate,               // per-unit price
+      price: loanTotal,   // total for this loan
+      quantity: numericQuantity,
+      date,
+      total: overallTotal, // cumulative total for the customer
+      status: "Y",
     });
-
 
     const populatedLoan = await Loans.findById(newLoan._id)
       .populate({
@@ -61,21 +150,23 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
+    // ✅ Flatten structure (consistent with updateLoan)
     const flattenedLoan = {
-        _id: populatedLoan._id,
-        customerId: (populatedLoan.customerId as any)?._id || null,
-        customerName: (populatedLoan.customerId as any)?.customerName || null,
-        price: populatedLoan.price,          // per-unit price (20)
-        quantity: populatedLoan.quantity,    // e.g., 4
-        loanTotal: (Number(populatedLoan.price) * (Number(populatedLoan.quantity) || 1)),  // computed total for this loan
-        receivable: populatedLoan.receivable ?? 0,
-        total: populatedLoan.total,
-        date: populatedLoan.date,
-        status: populatedLoan.status,
-        createdAt: populatedLoan.createdAt,
-        };
+      _id: populatedLoan._id,
+      customerId: (populatedLoan.customerId as any)?._id || null,
+      customerName: (populatedLoan.customerId as any)?.customerName || null,
+      rate: populatedLoan.rate, // per-unit rate
+      price: populatedLoan.price, // total for that product
+      quantity: populatedLoan.quantity,
+      loanTotal, // total for this loan
+      receivable: populatedLoan.receivable ?? 0,
+      total: populatedLoan.total, // cumulative customer total
+      date: populatedLoan.date,
+      status: populatedLoan.status,
+      createdAt: populatedLoan.createdAt,
+    };
 
-
+    // ✅ Calculate receivable summary
     const existingReceivableSum = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
@@ -93,6 +184,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     handleError(res, e);
   }
 };
+
 
 
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
