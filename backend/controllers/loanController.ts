@@ -13,7 +13,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     if (missingFields.length > 0) {
       res.status(400).send(`${missingFields.join(", ")} is required`);
       return;
-    }
+    };
 
     const numericPrice = Number(price);
     const numericQuantity = Number(quantity);
@@ -154,22 +154,24 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     if (!id) {
       res.status(400).json({ message: "Please provide ID!" });
       return;
-    }
+    };
 
     const { productName, customerId, price, quantity, date, receivable } = req.body;
+
+    let oldPrice = Number(price);
 
     const requiredFields = ["productName", "customerId", "price", "quantity", "date"];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
     if (missingFields.length > 0) {
       res.status(400).json({ message: "Bad Request! Missing: " + missingFields.join(", ") });
       return;
-    }
+    };
 
     const numericPrice = Number(price);
     if (isNaN(numericPrice)) {
       res.status(400).json({ message: "Invalid price: must be a number" });
       return;
-    }
+    };
 
     const existingLoan = await Loans.findById(id);
     if (!existingLoan) {
@@ -177,7 +179,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     };
 
-    const newPriceTotal = numericPrice * Number(quantity);
+    const newPriceTotal = oldPrice * Number(quantity);
 
     const oldCustomerId = String(existingLoan.customerId);
     const newCustomerId = String(customerId);
