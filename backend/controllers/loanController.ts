@@ -231,14 +231,14 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       0
     );
 
-    const currentOverallOutstanding = Number(loans[loans.length - 1].total) || 0;
+    const total = (Number(loans[loans.length - 1].total) || 0) - receivable;
     const lastLoanId = loans[loans.length - 1]._id;
 
     console.log("last loan", lastLoanId);
-    console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", currentOverallOutstanding);
+    console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", total);
 
     res.status(200).json({
-      total: currentOverallOutstanding,
+      total,
       receivable,
       loans: flattenedLoans,
     });
@@ -453,5 +453,80 @@ export const deleteLoan = async (req: express.Request, res: express.Response): P
     res.status(200).json({...flattenedLoan});
   } catch (error) {
     handleError(res, error);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+export const getLxoanById = async (req: express.Request, res: express.Response): Promise<void> => {
+  try {
+    const { id } = req.params; // customerId
+
+    const loans = await Loans.find({ status: "Y", customerId: id })
+      .sort({ createdAt: 1 })
+      .populate("customerId")
+      .lean();
+
+    if (!loans || loans.length === 0) {
+      res.status(200).json({
+        message: "No loan details found!",
+        total: 0,
+        receiveAmount: 0, // Renamed from 'receivable' for clarity
+        loans: [],
+      });
+      return;
+    }
+
+    const flattenedLoans = loans.map((loan) => {
+      const customer =
+        typeof loan.customerId === "object" ? loan.customerId : { _id: loan.customerId };
+
+      return {
+        _id: loan._id,
+        productName: loan.productName || null,
+        customerId: customer?._id || null,
+        customerName: (customer as any)?.customerName || null,
+        rate: loan.rate ?? 0,
+        price: loan.price ?? 0, // Price for this individual loan item
+        quantity: loan.quantity ?? 0,
+        receivable: loan.receivable ?? 0, // Amount received against this individual loan item
+        total: loan.total ?? 0, // Cumulative total at the time this loan was created/last updated
+        date: loan.date,
+        status: loan.status,
+        createdAt: loan.createdAt,
+      };
+    });
+
+    // 1. Get the latest 'total' from the latest loan record
+    // This 'total' field directly represents the customer's current outstanding balance.
+    const currentOverallOutstanding = Number(loans[loans.length - 1].total) || 0;
+
+    // 2. Sum the 'receivable' amounts from all loans to get the total amount received against items
+    const totalReceivedAgainstLoans = flattenedLoans.reduce(
+      (sum, loan) => sum + (Number(loan.receivable) || 0),
+      0
+    );
+
+    console.log("last loan", loans[loans.length - 1]._id);
+    console.log("Current Overall Outstanding (Total):", currentOverallOutstanding);
+    console.log("Total Received Against Loans (Receive Amount):", totalReceivedAgainstLoans);
+
+    res.status(200).json({
+      total: currentOverallOutstanding, // This will be your "Total:" in Image 1
+      receiveAmount: totalReceivedAgainstLoans, // This will be your "Receive Amount:" in Image 1
+      loans: flattenedLoans,
+    });
+  } catch (e) {
+    handleError(res, e);
   }
 };
