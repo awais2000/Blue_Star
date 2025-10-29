@@ -93,6 +93,8 @@ import { IProducts } from "../models/Products";
 //     handleError(res, e);
 //   }
 // };
+
+
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -183,7 +185,6 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 };
 
 
-
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { id } = req.params; // customerId
@@ -203,7 +204,6 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       return;
     }
 
-    const total = Number(loans[loans.length - 1].total) || 0;
 
     const flattenedLoans = loans.map((loan) => {
       const customer =
@@ -228,6 +228,10 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
+
+    const total = (Number(loans[loans.length - 1].total) || 0) - receivable;
+
+    console.log("total:", Number(loans[loans.length - 1].total) , "receivable:", receivable);
 
     res.status(200).json({
       total,
