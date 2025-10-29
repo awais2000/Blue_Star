@@ -93,7 +93,6 @@ import { IProducts } from "../models/Products";
 //     handleError(res, e);
 //   }
 // };
-
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -113,25 +112,25 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    // ✅ total price for this loan
     const loanTotal = rate * numericQuantity;
 
-    // Get all existing active loans for this customer
-    const customerLoans = await Loans.find({ status: "Y", customerId });
+    // --- Changed: fetch existing loans sorted so we can use latest cumulative total ---
+    const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
 
-    // ✅ Cumulative total = all previous loans' price + new loanTotal
-    const overallTotal =
-      customerLoans.reduce(
-        (sum, loan) => sum + (Number(loan.price) || 0),
-        0
-      ) + loanTotal;
+    // If there are existing loans, use the last loan's total (cumulative total after receivables),
+    // otherwise start from 0. This ensures receivable reductions are respected.
+    const existingTotal = (customerLoans && customerLoans.length > 0)
+      ? Number(customerLoans[customerLoans.length - 1].total) || 0
+      : 0;
 
-    // ✅ Create new loan
+    const overallTotal = existingTotal + loanTotal;
+    // -------------------------------------------------------------------------------
+
     const newLoan = await Loans.create({
       productName,
       customerId,
       rate,               // per-unit price
-      price: loanTotal,   // total for this loan
+      price: loanTotal,   // total for this loan (rate * qty)
       quantity: numericQuantity,
       date,
       total: overallTotal, // cumulative total for the customer
@@ -150,7 +149,6 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    // ✅ Flatten structure (consistent with updateLoan)
     const flattenedLoan = {
       _id: populatedLoan._id,
       customerId: (populatedLoan.customerId as any)?._id || null,
@@ -166,7 +164,6 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       createdAt: populatedLoan.createdAt,
     };
 
-    // ✅ Calculate receivable summary
     const existingReceivableSum = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
