@@ -208,56 +208,63 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    const loanTotal = rate * numericQuantity;
+    const loanAmountForThisProduct = rate * numericQuantity; // Total price for this specific product entry
 
-    // Fetch existing loans sorted to get the latest cumulative total
-    const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
+    // 1. Get the current overall outstanding balance from the LATEST loan record
+    const latestLoan = await Loans.findOne({ status: "Y", customerId })
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // The current overall cumulative debt for the customer
+    const currentOverallDebt = (latestLoan && typeof latestLoan.total === 'number') 
+                               ? latestLoan.total 
+                               : 0;
 
-    // Calculate the new overall total
-    const existingTotal = (customerLoans && customerLoans.length > 0)
-      ? Number(customerLoans[customerLoans.length - 1].total) || 0
-      : 0;
+    // 2. Calculate the NEW overall cumulative debt after adding this loan
+    const newOverallDebt = currentOverallDebt + loanAmountForThisProduct;
 
-    const overallTotal = existingTotal + loanTotal; // New cumulative total
-
-    // --- Create the new Loan document ---
+    // 3. Create the new Loan document
     const newLoan = await Loans.create({
       productName,
       customerId,
       rate, 
-      price: loanTotal,
+      price: loanAmountForThisProduct, // Total price for this specific product
       quantity: numericQuantity,
       date,
-      total: overallTotal, // New cumulative total for the customer
+      total: newOverallDebt, // This is the new cumulative debt for the customer
+      receivable: 0, // A new loan starts with 0 received against it
       status: "Y",
     });
 
-    // --- NEW LOGIC: Update the latest Receivable total to reflect new debt ---
-    const latestReceivable = await Receivables.findOne({ customerId, status: "Y" })
-      .sort({ createdAt: -1 })
+    // --- CRITICAL UPDATE: Now, we need to ensure the 'totalBalance' of the LATEST Receivable document
+    // --- reflects this new 'newOverallDebt'. This ensures your "Total Cash" on Cash Receive updates.
+    const lastReceivableEntry = await Receivables.findOne({ customerId, status: "Y" })
+      .sort({ createdAt: -1 }) // Get the most recent Receivable entry
       .lean();
 
-    if (latestReceivable) {
-        // Find the total cash paid by the customer so far
+    if (lastReceivableEntry) {
+        // We only update the 'totalBalance' and recalculate 'remainingCash' based on this new debt.
+        // The 'paidCash' in the receivable record itself does not change.
+        
+        // Sum all 'paidCash' entries to get total customer payments
         const allReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
-        const totalPayments = allReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
+        const totalPaymentsSoFar = allReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
         
-        const newTotalBalance = overallTotal; // overallTotal is the cumulative total after all loan reductions
-        const newRemainingCash = Math.max(0, newTotalBalance - totalPayments);
-        
-        // Update the latest Receivable record
+        const newRemainingCash = Math.max(0, newOverallDebt - totalPaymentsSoFar);
+
         await Receivables.findByIdAndUpdate(
-            latestReceivable._id,
+            lastReceivableEntry._id,
             {
-                totalBalance: newTotalBalance, 
-                remainingCash: newRemainingCash,
+                totalBalance: newOverallDebt, // Update "Total Cash" to the new overall debt
+                remainingCash: newRemainingCash, // Recalculate "Pending Cash"
             },
             { new: true }
         );
     }
-    // --- END NEW LOGIC ---
+    // --- END CRITICAL UPDATE ---
 
-    // Populate the created loan for response
+
+    // 4. Populate and flatten the new loan for response
     const populatedLoan = await Loans.findById(newLoan._id)
       .populate({
         path: "customerId",
@@ -270,33 +277,31 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    // Calculate total receivable sum from all loans for response
-    const existingReceivableSum = customerLoans.reduce(
+    // Get sum of all individual loan receivables for the response
+    const currentCustomerLoans = await Loans.find({ status: "Y", customerId }).lean();
+    const totalReceivedAgainstLoans = currentCustomerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
-    const newReceivable = Number(populatedLoan.receivable) || 0;
-    const receivable = existingReceivableSum + newReceivable;
 
-    // Flatten and send response
     const flattenedLoan = {
       _id: populatedLoan._id,
       customerId: (populatedLoan.customerId as any)?._id || null,
       customerName: (populatedLoan.customerId as any)?.customerName || null,
       rate: populatedLoan.rate,
-      price: populatedLoan.price,
+      price: populatedLoan.price, // This is the total price for THIS product line
       quantity: populatedLoan.quantity,
-      loanTotal,
-      receivable: populatedLoan.receivable ?? 0,
-      total: populatedLoan.total,
+      loanTotal: loanAmountForThisProduct, // Explicitly the total for this loan line
+      receivable: populatedLoan.receivable ?? 0, // Amount received for THIS loan line
+      total: populatedLoan.total, // Overall customer debt at this point
       date: populatedLoan.date,
       status: populatedLoan.status,
       createdAt: populatedLoan.createdAt,
     };
 
     res.status(200).json({
-      total: overallTotal,
-      receivable,
+      total: newOverallDebt, // Send the new overall debt as the total
+      receivable: totalReceivedAgainstLoans, // Sum of received on all loan lines
       loan: flattenedLoan,
     });
 
@@ -319,7 +324,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       res.status(200).json({
         message: "No loan details found!",
         total: 0,
-        receivable: 0,
+        receiveAmount: 0, // Renamed from 'receivable' for clarity
         loans: [],
       });
       return;
@@ -334,37 +339,40 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         productName: loan.productName || null,
         customerId: customer?._id || null,
         customerName: (customer as any)?.customerName || null,
-        price: loan.price ?? 0,
+        rate: loan.rate ?? 0,
+        price: loan.price ?? 0, // Price for this individual loan item
         quantity: loan.quantity ?? 0,
-        receivable: loan.receivable ?? 0,
-        total: loan.total ?? 0,
+        receivable: loan.receivable ?? 0, // Amount received against this individual loan item
+        total: loan.total ?? 0, // Cumulative total at the time this loan was created/last updated
         date: loan.date,
         status: loan.status,
         createdAt: loan.createdAt,
       };
     });
 
-    const receivable = flattenedLoans.reduce(
+    // 1. Get the latest 'total' from the latest loan record
+    // This 'total' field directly represents the customer's current outstanding balance.
+    const currentOverallOutstanding = Number(loans[loans.length - 1].total) || 0;
+
+    // 2. Sum the 'receivable' amounts from all loans to get the total amount received against items
+    const totalReceivedAgainstLoans = flattenedLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
 
-    const total = (Number(loans[loans.length - 1].total) || 0) - receivable;
-    const lastLoanId = loans[loans.length - 1]._id;
-
-    console.log("last loan", lastLoanId);
-    console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", total);
+    console.log("last loan", loans[loans.length - 1]._id);
+    console.log("Current Overall Outstanding (Total):", currentOverallOutstanding);
+    console.log("Total Received Against Loans (Receive Amount):", totalReceivedAgainstLoans);
 
     res.status(200).json({
-      total,
-      receivable,
+      total: currentOverallOutstanding, // This will be your "Total:" in Image 1
+      receiveAmount: totalReceivedAgainstLoans, // This will be your "Receive Amount:" in Image 1
       loans: flattenedLoans,
     });
   } catch (e) {
     handleError(res, e);
   }
 };
-
 export const updateLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const id = req.params.id;
