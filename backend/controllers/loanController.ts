@@ -15,6 +15,8 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     };
 
+    const rate = Number(price);
+
     const numericPrice = Number(price);
     const numericQuantity = Number(quantity);
     if (isNaN(numericPrice) || isNaN(numericQuantity)) {
@@ -37,7 +39,8 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     const newLoan = await Loans.create({
     productName,
     customerId,
-    price: anotherTotal,          // per-unit price
+    price: anotherTotal,   
+    rate,       // per-unit price
     quantity: numericQuantity,    // number of units
     date,
     loanTotal,                    // total for this product
@@ -160,6 +163,8 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
 
     let oldPrice = Number(price);
 
+    const rate = Number(price);
+
     const requiredFields = ["productName", "customerId", "price", "quantity", "date"];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
     if (missingFields.length > 0) {
@@ -179,14 +184,14 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     };
 
-    const newPriceTotal = oldPrice * Number(quantity);
+    const newPriceTotal = rate * Number(quantity);
 
     const oldCustomerId = String(existingLoan.customerId);
     const newCustomerId = String(customerId);
 
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productName, customerId: newCustomerId, price: newPriceTotal, quantity, date, receivable },
+      { productName, customerId: newCustomerId, rate, price: newPriceTotal, quantity, date, receivable, },
       { new: true }
     );
 
@@ -236,6 +241,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       productName: finalLoan.productName || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
+      rate: finalLoan.rate,
       price: finalLoan.price,
       quantity: finalLoan.quantity,
       receivable: finalLoan.receivable,

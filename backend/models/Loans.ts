@@ -5,6 +5,7 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 export interface ILoans extends Document {
     productName:  string;
     customerId: mongoose.Types.ObjectId;
+    rate: string;
     price: number;
     quantity: number;
     receivable: number;
@@ -24,6 +25,7 @@ const LoansScehma = new mongoose.Schema({
     required: true,
   },
   price: Number,
+  rate: Number,
   quantity: Number,
   receivable: Number,
   date: Date,
