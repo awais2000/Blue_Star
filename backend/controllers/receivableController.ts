@@ -5,7 +5,6 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
-
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -23,26 +22,26 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const customerLoans = await Loans.find({ status: "Y", customerId }).lean();
+    // 1) Fetch customer's active loans in chronological order
+    const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    const totalBalance = customerLoans.reduce(
-      (sum, loan) => sum + (Number(loan.price) || 0),
-      0
-    );
+    // 2) Use the latest loan's total as the current cumulative balance (respects prior payments)
+    const latestLoan = customerLoans[customerLoans.length - 1];
+    const totalBalance = Number(latestLoan.total) || 0;
 
+    // 3) Sum previous receivables (already paid before this request)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
-    const prevPaidSum = prevReceivables.reduce(
-      (sum, r) => sum + (Number(r.paidCash) || 0),
-      0
-    );
+    const prevPaidSum = prevReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
 
+    // 4) Compute totals
     const totalPaid = prevPaidSum + numericPaid;
     const remainingCash = Math.max(0, totalBalance - totalPaid);
 
+    // 5) Create the new Receivable record (remainingCash uses cumulative payments)
     const newReceivable = await Receivables.create({
       customerId,
       date,
@@ -52,20 +51,41 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       status: "Y",
     });
 
+    // 6) Recompute per-loan totals and set receivable on each loan
+    //    For each loan in chronological order compute cumulative = sum(prices up to this loan)
+    //    Then newLoanTotal = max(0, cumulative - totalPaid)
+    const bulkOps: any[] = [];
+    let runningCumulative = 0;
+
+    for (const loan of customerLoans) {
+      const loanPrice = Number(loan.price) || 0; // price stored as rate * qty
+      runningCumulative += loanPrice;
+
+      const newLoanTotal = Math.max(0, runningCumulative - totalPaid);
+
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: loan._id },
+          update: {
+            $set: {
+              total: newLoanTotal,
+              receivable: totalPaid,
+            },
+          },
+        },
+      });
+    }
+
+    if (bulkOps.length > 0) {
+      await Loans.bulkWrite(bulkOps);
+    }
+
+    // 7) Populate receivable to return customerName
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
 
-    await Loans.updateMany(
-      { customerId, status: "Y" },
-      {
-        $set: {
-          receivable: totalPaid,     // how much has been paid so far
-          total: remainingCash, // new outstanding balance
-        },
-      }
-    );
-
+    // 8) Flatten response
     const flattenedReceivable = {
       _id: populatedReceivable?._id,
       customerId: populatedReceivable?.customerId?._id || null,
