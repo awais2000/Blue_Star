@@ -9,6 +9,7 @@ export interface ILoans extends Document {
     price: number;
     quantity: number;
     receivable: number;
+    tempTotal: number;
     date: Date;
     total: number
     status: string; 
@@ -28,6 +29,7 @@ const LoansScehma = new mongoose.Schema({
   rate: Number,
   quantity: Number,
   receivable: Number,
+  tempTotal: Number,
   date: Date,
   total: Number,
   status: { type: String, default: "Y" },

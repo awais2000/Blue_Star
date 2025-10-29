@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import Loans from "../models/Loans";
 import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
+import Receivables from "../models/Receivable";
+
 
 // export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
 //   try {
@@ -217,6 +219,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         price: loan.price ?? 0,
         quantity: loan.quantity ?? 0, // ensure numeric
         receivable: loan.receivable ?? 0,
+        tempTotal: loan.tempTotal ?? 0,
         total: loan.total ?? 0,
         date: loan.date,
         status: loan.status,
@@ -229,7 +232,16 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
       0
     );
 
+    
     const total = (Number(loans[loans.length - 1].total) || 0) - receivable;
+    
+    const updateTotalBalance = await Loans.findByIdAndUpdate(
+      id,
+      {
+        tempTotal: total
+      },
+      { new: true }
+    );
 
     console.log("total:", Number(loans[loans.length - 1].total) , "receivable:", receivable);
 
