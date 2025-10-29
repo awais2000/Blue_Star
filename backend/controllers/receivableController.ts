@@ -5,6 +5,7 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
+
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -29,29 +30,32 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 2) Get the tempTotal from the last loan (which was calculated in getLoanById)
-    const lastLoan = customerLoans[customerLoans.length - 1];
-    const currentTotalBalance = Number(lastLoan.tempTotal) || Number(lastLoan.total) || 0;
+    const lastLoan = customerLoans[customerLoans.length - 1].tempTotal;
+
+    console.log(lastLoan);
+
+    // 2) Compute the ORIGINAL cumulative total (sum of loan.price = rate * qty for each item)
+    const originalTotal = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0);
 
     // 3) Sum previous receivables (already paid before this request)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
 
     // 4) Compute totals
-    const totalPaid = prevPaidSum + numericPaid; // cumulative paid including this payment
-    const remainingCash = Math.max(0, currentTotalBalance - totalPaid); // remaining outstanding
+    const totalPaid = prevPaidSum + numericPaid;                // cumulative paid including this payment
+    const remainingCash = Math.max(0, originalTotal - totalPaid); // remaining outstanding
 
-    // 5) Create the new Receivable record with updated totalBalance from tempTotal
+    // 5) Create the new Receivable record (store originalTotal so history remains clear)
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      totalBalance: currentTotalBalance, // Use tempTotal from last loan instead of originalTotal
+      totalBalance: lastLoan,
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
     });
 
-    // 6) Update loan totals and receivables
+    // 6) FIXED: Use current loan totals from database instead of original prices
     let remainingPayment = numericPaid;
     const bulkOps: any[] = [];
 
@@ -94,7 +98,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
           filter: { _id: loan._id },
           update: {
             $set: {
-              total: newLoanTotal, // Use individual loan total, not remainingCash
+              total: remainingCash,
               receivable: totalPaidForThisLoan,
             },
           },
@@ -106,10 +110,22 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       await Loans.bulkWrite(bulkOps);
     }
 
+    
     // 7) Populate receivable to return customerName
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
+
+    // const receivableId =  populatedReceivable._id;
+    // let totalBalanceRec = populatedReceivable.totalBalance;
+    //   const updateTotalBalance = await Receivables.findByIdAndUpdate(
+    //   receivableId,
+    //   {
+    //     totalBalance: totalBalanceRec
+    //   },
+    //   { new: true }
+    // );
+
 
     // 8) Flatten response
     const flattenedReceivable = {
@@ -129,6 +145,8 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
+
+
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -273,3 +291,5 @@ export const updateReceivable = async (req: Request, res: Response): Promise<voi
     handleError(res, e);
   }
 };
+
+
