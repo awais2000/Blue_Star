@@ -97,6 +97,98 @@ import Receivables from "../models/Receivable";
 // };
 
 
+// export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
+//   try {
+//     const { productName, customerId, price, quantity, date } = req.body;
+
+//     const requiredFields = ["productName", "customerId", "price", "date", "quantity"];
+//     const missingFields = requiredFields.filter(field => !req.body[field]);
+//     if (missingFields.length > 0) {
+//       res.status(400).send(`${missingFields.join(", ")} is required`);
+//       return;
+//     }
+
+//     const rate = Number(price); // per-unit rate
+//     const numericQuantity = Number(quantity);
+
+//     if (isNaN(rate) || isNaN(numericQuantity)) {
+//       res.status(400).send("Invalid price or quantity: both must be numbers");
+//       return;
+//     }
+
+//     const loanTotal = rate * numericQuantity;
+
+//     // --- Changed: fetch existing loans sorted so we can use latest cumulative total ---
+//     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
+
+//     // If there are existing loans, use the last loan's total (cumulative total after receivables),
+//     // otherwise start from 0. This ensures receivable reductions are respected.
+//     const existingTotal = (customerLoans && customerLoans.length > 0)
+//       ? Number(customerLoans[customerLoans.length - 1].total) || 0
+//       : 0;
+
+//     const overallTotal = existingTotal + loanTotal;
+//     // -------------------------------------------------------------------------------
+
+//     const newLoan = await Loans.create({
+//       productName,
+//       customerId,
+//       rate,               // per-unit price
+//       price: loanTotal,   // total for this loan (rate * qty)
+//       quantity: numericQuantity,
+//       date,
+//       total: overallTotal, // cumulative total for the customer
+//       status: "Y",
+//     });
+
+//     const populatedLoan = await Loans.findById(newLoan._id)
+//       .populate({
+//         path: "customerId",
+//         match: { status: "Y" },
+//       })
+//       .lean();
+
+//     if (!populatedLoan) {
+//       res.status(500).json({ success: false, message: "Failed to fetch created loan" });
+//       return;
+//     }
+
+//     const flattenedLoan = {
+//       _id: populatedLoan._id,
+//       customerId: (populatedLoan.customerId as any)?._id || null,
+//       customerName: (populatedLoan.customerId as any)?.customerName || null,
+//       rate: populatedLoan.rate, // per-unit rate
+//       price: populatedLoan.price, // total for that product
+//       quantity: populatedLoan.quantity,
+//       loanTotal, // total for this loan
+//       receivable: populatedLoan.receivable ?? 0,
+//       total: populatedLoan.total, // cumulative customer total
+//       date: populatedLoan.date,
+//       status: populatedLoan.status,
+//       createdAt: populatedLoan.createdAt,
+//     };
+
+//     const existingReceivableSum = customerLoans.reduce(
+//       (sum, loan) => sum + (Number(loan.receivable) || 0),
+//       0
+//     );
+//     const newReceivable = Number(populatedLoan.receivable) || 0;
+//     const receivable = existingReceivableSum + newReceivable;
+
+//     res.status(200).json({
+//       total: overallTotal,
+//       receivable,
+//       loan: flattenedLoan,
+//     });
+
+//   } catch (e) {
+//     handleError(res, e);
+//   }
+// };
+
+
+
+
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -118,29 +210,54 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
     const loanTotal = rate * numericQuantity;
 
-    // --- Changed: fetch existing loans sorted so we can use latest cumulative total ---
+    // Fetch existing loans sorted to get the latest cumulative total
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
 
-    // If there are existing loans, use the last loan's total (cumulative total after receivables),
-    // otherwise start from 0. This ensures receivable reductions are respected.
+    // Calculate the new overall total
     const existingTotal = (customerLoans && customerLoans.length > 0)
       ? Number(customerLoans[customerLoans.length - 1].total) || 0
       : 0;
 
-    const overallTotal = existingTotal + loanTotal;
-    // -------------------------------------------------------------------------------
+    const overallTotal = existingTotal + loanTotal; // New cumulative total
 
+    // --- Create the new Loan document ---
     const newLoan = await Loans.create({
       productName,
       customerId,
-      rate,               // per-unit price
-      price: loanTotal,   // total for this loan (rate * qty)
+      rate, 
+      price: loanTotal,
       quantity: numericQuantity,
       date,
-      total: overallTotal, // cumulative total for the customer
+      total: overallTotal, // New cumulative total for the customer
       status: "Y",
     });
 
+    // --- NEW LOGIC: Update the latest Receivable total to reflect new debt ---
+    const latestReceivable = await Receivables.findOne({ customerId, status: "Y" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (latestReceivable) {
+        // Find the total cash paid by the customer so far
+        const allReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
+        const totalPayments = allReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
+        
+        const newTotalBalance = overallTotal; // overallTotal is the cumulative total after all loan reductions
+        const newRemainingCash = Math.max(0, newTotalBalance - totalPayments);
+        
+        // Update the latest Receivable record
+        await Receivables.findByIdAndUpdate(
+            latestReceivable._id,
+            {
+                totalBalance: newTotalBalance, 
+                remainingCash: newRemainingCash,
+            },
+            { new: true }
+        );
+    }
+    // --- END NEW LOGIC ---
+
+    // Populate the created loan for response
     const populatedLoan = await Loans.findById(newLoan._id)
       .populate({
         path: "customerId",
@@ -153,27 +270,29 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    const flattenedLoan = {
-      _id: populatedLoan._id,
-      customerId: (populatedLoan.customerId as any)?._id || null,
-      customerName: (populatedLoan.customerId as any)?.customerName || null,
-      rate: populatedLoan.rate, // per-unit rate
-      price: populatedLoan.price, // total for that product
-      quantity: populatedLoan.quantity,
-      loanTotal, // total for this loan
-      receivable: populatedLoan.receivable ?? 0,
-      total: populatedLoan.total, // cumulative customer total
-      date: populatedLoan.date,
-      status: populatedLoan.status,
-      createdAt: populatedLoan.createdAt,
-    };
-
+    // Calculate total receivable sum from all loans for response
     const existingReceivableSum = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
     const newReceivable = Number(populatedLoan.receivable) || 0;
     const receivable = existingReceivableSum + newReceivable;
+
+    // Flatten and send response
+    const flattenedLoan = {
+      _id: populatedLoan._id,
+      customerId: (populatedLoan.customerId as any)?._id || null,
+      customerName: (populatedLoan.customerId as any)?.customerName || null,
+      rate: populatedLoan.rate,
+      price: populatedLoan.price,
+      quantity: populatedLoan.quantity,
+      loanTotal,
+      receivable: populatedLoan.receivable ?? 0,
+      total: populatedLoan.total,
+      date: populatedLoan.date,
+      status: populatedLoan.status,
+      createdAt: populatedLoan.createdAt,
+    };
 
     res.status(200).json({
       total: overallTotal,
@@ -185,6 +304,7 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
     handleError(res, e);
   }
 };
+
 
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
   try {

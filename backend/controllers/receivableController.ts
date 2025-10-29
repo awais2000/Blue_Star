@@ -4,7 +4,6 @@ import Receivables from "../models/Receivable";
 import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
-
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -22,57 +21,50 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 1) Fetch customer's active loans in chronological order (oldest -> newest)
-    // We need 'price' (original loan amount) and 'receivable' (amount paid for that loan)
+    // 1) Fetch customer's active loans in chronological order
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    // --- START: Logic to calculate CURRENT OUTSTANDING BALANCE (from getLoanById) ---
-    // 2a) Get the latest loan's overall cumulative total (which includes all loans)
+    // --- Calculate CURRENT OUTSTANDING BALANCE (Value from getLoanById's 'total') ---
     const latestCumulativeTotal = Number(customerLoans[customerLoans.length - 1].total) || 0;
     
-    // 2b) Sum previous receivables (amounts recorded as paid on individual loan documents)
     const totalPastLoanReceivables = customerLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
 
-    // 3) Calculate the CURRENT OUTSTANDING BALANCE before this payment (Your Goal: totalBalance)
-    // Outstanding Total = Latest Loan Cumulative Total - Sum of all past Loan.receivable amounts
+    // This is the true outstanding amount before this payment (your goal for totalBalance)
     const currentOutstandingBalance = Math.max(0, latestCumulativeTotal - totalPastLoanReceivables);
-    // --- END: Logic to calculate CURRENT OUTSTANDING BALANCE ---
+    // --- END Calculation ---
 
-    // 4) Compute totals for the new Receivable record
-    // The total balance for the Receivable record is the amount OWED BEFORE THIS PAYMENT
+    // 2) Compute new totals after this payment
     const receivableTotalBalance = currentOutstandingBalance; 
-    const remainingCash = Math.max(0, currentOutstandingBalance - numericPaid); // remaining outstanding AFTER THIS payment
+    const remainingCash = Math.max(0, currentOutstandingBalance - numericPaid); // outstanding AFTER this payment
 
-    // 5) Create the new Receivable record
+    // 3) Create the new Receivable record
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      // **GOAL ACHIEVED: Use the calculated outstanding balance as the totalBalance**
-      totalBalance: receivableTotalBalance, 
+      totalBalance: receivableTotalBalance, // The total owed BEFORE this payment
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
     });
 
-    // 6) Apply payment to loans (FIFO - First-In, First-Out)
+    // 4) Apply payment to loans (FIFO - First-In, First-Out)
     let remainingPayment = numericPaid;
     const bulkOps: any[] = [];
-    let newLatestCumulativeTotal = latestCumulativeTotal; // Start with the pre-payment cumulative total
 
+    // Apply payment to oldest outstanding loans first
     for (const loan of customerLoans) {
-      // Amount remaining to be paid for this specific loan (original price - amount already received)
       const originalLoanPrice = Number(loan.price) || 0;
       const currentReceivable = Number(loan.receivable) || 0;
       const loanOutstanding = Math.max(0, originalLoanPrice - currentReceivable);
 
-      // If no payment left or loan is paid off, break the loop
+      // If no payment left or loan is paid off, break
       if (remainingPayment <= 0 || loanOutstanding <= 0) {
         break; 
       }
@@ -80,30 +72,26 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       // Calculate how much of the current payment applies to this loan
       const paymentForThisLoan = Math.min(remainingPayment, loanOutstanding);
       
-      // Update the remaining payment
       remainingPayment -= paymentForThisLoan;
 
       // Update receivable field for this loan
       const newReceivableForLoan = currentReceivable + paymentForThisLoan;
 
-      // Prepare the update operation for this loan
       bulkOps.push({
         updateOne: {
           filter: { _id: loan._id },
           update: {
             $set: {
-              // Only update the 'receivable' field for individual loans
-              receivable: newReceivableForLoan,
+              receivable: newReceivableForLoan, // Update amount paid for this specific loan
             },
           },
         },
       });
     }
 
-    // 7) Update the overall cumulative total (Loans.total) on the LATEST loan document
-    // We update the 'total' field of the latest loan to reflect the final outstanding amount.
-    // This maintains the consistency with how your 'addLoan' uses this field.
-    newLatestCumulativeTotal = Math.max(0, newLatestCumulativeTotal - numericPaid);
+    // 5) Update the overall cumulative total (Loans.total) on the LATEST loan document
+    let newLatestCumulativeTotal = latestCumulativeTotal - numericPaid;
+    newLatestCumulativeTotal = Math.max(0, newLatestCumulativeTotal);
 
     bulkOps.push({
         updateOne: {
@@ -120,12 +108,11 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       await Loans.bulkWrite(bulkOps);
     }
     
-    // 8) Populate receivable to return customerName
+    // 6) Populate and flatten response
     const populatedReceivable = await Receivables.findById(newReceivable._id)
       .populate("customerId")
       .lean();
 
-    // 9) Flatten response
     const flattenedReceivable = {
       _id: populatedReceivable?._id,
       customerId: populatedReceivable?.customerId?._id || null,
@@ -140,11 +127,9 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
 
     res.status(200).json(flattenedReceivable);
   } catch (e) {
-    // Assuming 'handleError' is defined elsewhere
     handleError(res, e);
   }
 };
-
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
