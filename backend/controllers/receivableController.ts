@@ -5,6 +5,7 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
+
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -50,17 +51,31 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       status: "Y",
     });
 
-    // 6) Recompute per-loan totals and set receivable on each loan
-    //    For each loan in chronological order compute cumulative = sum(prices up to this loan)
-    //    Then newLoanTotal = max(0, cumulative - totalPaid)
+    // 6) CORRECTED: Recompute per-loan totals and set receivable on each loan
+    // Track remaining payment to distribute across loans
+    let remainingPayment = numericPaid;
     const bulkOps: any[] = [];
     let runningCumulative = 0;
 
     for (const loan of customerLoans) {
-      const loanPrice = Number(loan.price) || 0; // price stored as rate * qty
+      const loanPrice = Number(loan.price) || 0;
       runningCumulative += loanPrice;
 
-      const newLoanTotal = Math.max(0, runningCumulative - totalPaid);
+      // Calculate how much of the payment applies to this specific loan
+      const previousCumulative = runningCumulative - loanPrice;
+      const alreadyPaidForThisLoan = Math.min(prevPaidSum, runningCumulative) - previousCumulative;
+      const alreadyPaidForThisLoanClamped = Math.max(0, alreadyPaidForThisLoan);
+
+      // Calculate payment for this loan from the current payment
+      const remainingLoanBalance = loanPrice - alreadyPaidForThisLoanClamped;
+      const paymentForThisLoan = Math.min(remainingPayment, remainingLoanBalance);
+      
+      // Update remaining payment for next loans
+      remainingPayment -= paymentForThisLoan;
+
+      // Calculate new totals for this loan
+      const newLoanTotal = Math.max(0, loanPrice - alreadyPaidForThisLoanClamped - paymentForThisLoan);
+      const totalPaidForThisLoan = alreadyPaidForThisLoanClamped + paymentForThisLoan;
 
       bulkOps.push({
         updateOne: {
@@ -68,7 +83,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
           update: {
             $set: {
               total: newLoanTotal,
-              receivable: totalPaid,
+              receivable: totalPaidForThisLoan, // Only the portion that applies to this loan
             },
           },
         },
@@ -102,7 +117,6 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
-
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
