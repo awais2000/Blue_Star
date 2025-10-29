@@ -5,7 +5,6 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
-
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -30,10 +29,9 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 2) Compute the current total using your formula from getLoansById
+    // 2) Get the tempTotal from the last loan (which was calculated in getLoanById)
     const lastLoan = customerLoans[customerLoans.length - 1];
-    const receivable = customerLoans.reduce((sum, loan) => sum + (Number(loan.receivable) || 0), 0);
-    const currentTotalBalance = (Number(lastLoan.total) || 0) - receivable;
+    const currentTotalBalance = Number(lastLoan.tempTotal) || Number(lastLoan.total) || 0;
 
     // 3) Sum previous receivables (already paid before this request)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
@@ -43,11 +41,11 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     const totalPaid = prevPaidSum + numericPaid; // cumulative paid including this payment
     const remainingCash = Math.max(0, currentTotalBalance - totalPaid); // remaining outstanding
 
-    // 5) Create the new Receivable record with updated totalBalance
+    // 5) Create the new Receivable record with updated totalBalance from tempTotal
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      totalBalance: currentTotalBalance, // Use the current calculated total instead of original
+      totalBalance: currentTotalBalance, // Use tempTotal from last loan instead of originalTotal
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
@@ -60,8 +58,9 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     for (const loan of customerLoans) {
       const currentLoanTotal = Number(loan.total) || Number(loan.price) || 0;
       
-      // If no remaining payment or loan is already paid off, skip updating total but update receivable
+      // If no remaining payment or loan is already paid off, skip
       if (remainingPayment <= 0 || currentLoanTotal <= 0) {
+        // Even if no payment applies, we should update receivable to reflect total paid so far
         const currentReceivable = Number(loan.receivable) || 0;
         const totalPaidForThisLoan = Math.min(currentReceivable + remainingPayment, Number(loan.price) || 0);
         
@@ -95,7 +94,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
           filter: { _id: loan._id },
           update: {
             $set: {
-              total: newLoanTotal, // Update with the calculated new loan total
+              total: newLoanTotal, // Use individual loan total, not remainingCash
               receivable: totalPaidForThisLoan,
             },
           },
@@ -130,8 +129,6 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
-
-
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
