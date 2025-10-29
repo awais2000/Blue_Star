@@ -22,30 +22,29 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 1) Fetch customer's active loans in chronological order
+    // 1) Fetch customer's active loans in chronological order (oldest -> newest)
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    // 2) Use the latest loan's total as the current cumulative balance (respects prior payments)
-    const latestLoan = customerLoans[customerLoans.length - 1];
-    const totalBalance = Number(latestLoan.total) || 0;
+    // 2) Compute the ORIGINAL cumulative total (sum of loan.price = rate * qty for each item)
+    const originalTotal = customerLoans.reduce((sum, loan) => sum + (Number(loan.price) || 0), 0);
 
     // 3) Sum previous receivables (already paid before this request)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
 
     // 4) Compute totals
-    const totalPaid = prevPaidSum + numericPaid;
-    const remainingCash = Math.max(0, totalBalance - totalPaid);
+    const totalPaid = prevPaidSum + numericPaid;                // cumulative paid including this payment
+    const remainingCash = Math.max(0, originalTotal - totalPaid); // remaining outstanding
 
-    // 5) Create the new Receivable record (remainingCash uses cumulative payments)
+    // 5) Create the new Receivable record (store originalTotal so history remains clear)
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      totalBalance,
+      totalBalance: originalTotal,
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
@@ -103,7 +102,6 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
-
 
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
