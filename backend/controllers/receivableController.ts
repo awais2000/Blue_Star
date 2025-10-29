@@ -49,7 +49,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     const newReceivable = await Receivables.create({
       customerId,
       date,
-      totalBalance: lastLoan,
+      totalBalance: originalTotal,
       paidCash: numericPaid,
       remainingCash,
       status: "Y",
