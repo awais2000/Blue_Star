@@ -157,58 +157,67 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     if (!id) {
       res.status(400).json({ message: "Please provide ID!" });
       return;
-    };
+    }
 
     const { productName, customerId, price, quantity, date, receivable } = req.body;
 
-    let oldPrice = Number(price);
-
-    const rate = Number(price);
-
+    // Validate required fields
     const requiredFields = ["productName", "customerId", "price", "quantity", "date"];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
     if (missingFields.length > 0) {
       res.status(400).json({ message: "Bad Request! Missing: " + missingFields.join(", ") });
       return;
-    };
+    }
 
-    const numericPrice = Number(price);
-    if (isNaN(numericPrice)) {
-      res.status(400).json({ message: "Invalid price: must be a number" });
+    const numericRate = Number(price);
+    const numericQuantity = Number(quantity);
+    if (isNaN(numericRate) || isNaN(numericQuantity)) {
+      res.status(400).json({ message: "Invalid price or quantity: both must be numbers" });
       return;
-    };
+    }
 
     const existingLoan = await Loans.findById(id);
     if (!existingLoan) {
       res.status(404).json({ message: "Loan not found!" });
       return;
-    };
+    }
 
-    const newPriceTotal = rate * Number(quantity);
+    // 👇 Total price for this loan (same logic as addLoan)
+    const loanTotal = numericRate * numericQuantity;
 
     const oldCustomerId = String(existingLoan.customerId);
     const newCustomerId = String(customerId);
 
+    // Update this specific loan
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productName, customerId: newCustomerId, rate, price: newPriceTotal, quantity, date, receivable, },
+      {
+        productName,
+        customerId: newCustomerId,
+        rate: numericRate,   // per-unit price
+        price: loanTotal,    // total for this product
+        quantity: numericQuantity,
+        date,
+        receivable,
+      },
       { new: true }
     );
 
     if (!updatedLoan) {
       res.status(500).json({ message: "Error updating loan." });
       return;
-    };
+    }
 
-      const recalcTotalsForCustomer = async (custId: string) => {
+    // Function to recalculate totals for each customer's active loans
+    const recalcTotalsForCustomer = async (custId: string) => {
       const loans = await Loans.find({ customerId: custId, status: "Y" }).sort({ date: 1, _id: 1 });
 
       let runningTotal = 0;
       const bulkOps: any[] = [];
 
       for (const loan of loans) {
-        const loanPrice = Number(loan.price) || 0;
-        runningTotal += loanPrice;
+        const loanTotal = Number(loan.price) || 0; // price already = rate × qty
+        runningTotal += loanTotal;
 
         bulkOps.push({
           updateOne: {
@@ -216,19 +225,21 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
             update: { $set: { total: runningTotal } },
           },
         });
-      };
+      }
 
       if (bulkOps.length > 0) {
         await Loans.bulkWrite(bulkOps);
       }
     };
 
+    // If customer changed, recalc for both old and new customers
     if (oldCustomerId !== newCustomerId) {
       await recalcTotalsForCustomer(oldCustomerId);
     }
 
     await recalcTotalsForCustomer(newCustomerId);
 
+    // Populate updated loan with customer data
     const finalLoan = await Loans.findById(id).populate("customerId").lean();
 
     if (!finalLoan) {
@@ -236,26 +247,25 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
       return;
     }
 
+    // Flatten response for frontend
     const flattenedLoan = {
       _id: finalLoan._id,
       productName: finalLoan.productName || null,
       customerId: finalLoan.customerId?._id || null,
       customerName: (finalLoan.customerId as any)?.customerName || null,
-      rate: finalLoan.rate,
-      price: finalLoan.price,
+      rate: finalLoan.rate, // per-unit price
+      price: finalLoan.price, // total price for that product (rate × qty)
       quantity: finalLoan.quantity,
       receivable: finalLoan.receivable,
-      total: finalLoan.total,
+      total: finalLoan.total, // cumulative customer total
       date: finalLoan.date,
       status: finalLoan.status,
       createdAt: finalLoan.createdAt,
     };
 
-    const total = flattenedLoan.total ?? 0;
-
     res.status(200).json({
       message: "Loan updated successfully!",
-      total,
+      total: flattenedLoan.total ?? 0,
       receivable: flattenedLoan.receivable ?? 0,
       loan: flattenedLoan,
     });
