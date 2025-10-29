@@ -9,11 +9,10 @@ import Loans from "../models/Loans";
 
 
 
-
 export const deleteRequest = async (req: express.Request, res: express.Response): Promise<void> => {
     try{
         // const deleted = await Sales.deleteMany({});
-        const deleted2 = await Receivables.deleteMany({});
+        const deleted2 = await Loans.deleteMany({});
 
         res.status(200).send(deleted2);
     }catch(error){

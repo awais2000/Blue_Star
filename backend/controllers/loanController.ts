@@ -34,7 +34,6 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
         0
     ) + loanTotal;
 
-    // ✅ Keep the original price per unit, and store loanTotal separately
     const newLoan = await Loans.create({
     productName,
     customerId,
@@ -176,23 +175,25 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
     if (!existingLoan) {
       res.status(404).json({ message: "Loan not found!" });
       return;
-    }
+    };
+
+    const newPriceTotal = numericPrice * Number(quantity);
 
     const oldCustomerId = String(existingLoan.customerId);
     const newCustomerId = String(customerId);
 
     const updatedLoan = await Loans.findByIdAndUpdate(
       id,
-      { productName, customerId: newCustomerId, price: numericPrice, quantity, date, receivable },
+      { productName, customerId: newCustomerId, price: newPriceTotal, quantity, date, receivable },
       { new: true }
     );
 
     if (!updatedLoan) {
       res.status(500).json({ message: "Error updating loan." });
       return;
-    }
+    };
 
-    const recalcTotalsForCustomer = async (custId: string) => {
+      const recalcTotalsForCustomer = async (custId: string) => {
       const loans = await Loans.find({ customerId: custId, status: "Y" }).sort({ date: 1, _id: 1 });
 
       let runningTotal = 0;
@@ -208,7 +209,7 @@ export const updateLoan = async (req: express.Request, res: express.Response): P
             update: { $set: { total: runningTotal } },
           },
         });
-      }
+      };
 
       if (bulkOps.length > 0) {
         await Loans.bulkWrite(bulkOps);
