@@ -5,7 +5,6 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
-
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -23,17 +22,20 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // 1. Fetch active loans (sorted by creation date)
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
+    // 2. Calculate current outstanding debt (Sum of individual loan outstanding amounts)
     const totalBalanceSum = customerLoans.reduce(
-    (sum, l) => sum + Math.max(0, (Number(l.price) || 0) - (Number(l.receivable) || 0)),
-    0
+      (sum, l) => sum + Math.max(0, (Number(l.price) || 0) - (Number(l.receivable) || 0)),
+      0
     );
 
+    // 3. Calculate total payments made so far (from all previous Receivable documents)
     const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce(
       (sum, r) => sum + (Number(r.paidCash) || 0),
@@ -41,52 +43,44 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     );
 
     const totalPaid = prevPaidSum + numericPaid;
-    const remainingCash = Math.max(0, totalBalanceSum - totalPaid); // 🔥 MASTER remainingCash
 
+    // 4. Calculate the MASTER remaining cash (Overall Outstanding - Total Paid)
+    const masterRemainingCash = Math.max(0, totalBalanceSum - totalPaid); // 🔥 MASTER remainingCash
+
+    // 5. Create the new Receivable document
     const newReceivableDoc = await Receivables.create({
       customerId,
       date,
-      totalBalance: totalBalanceSum,
+      totalBalance: totalBalanceSum, // Overall outstanding debt before this payment
       paidCash: numericPaid,
-      remainingCash, // use global remainingCash
+      remainingCash: masterRemainingCash, // Use the calculated MASTER remainingCash
       status: "Y",
     });
 
+    // 6. Apply payment to individual loans (FIFO) and prepare bulk update
     let remainingPayment = numericPaid;
     const bulkOps: any[] = [];
 
     for (const loan of customerLoans) {
       const loanPrice = Number(loan.price) || 0;
       const loanAlreadyPaid = Number(loan.receivable) || 0;
-      const loanRemaining = Math.max(0, loanPrice - loanAlreadyPaid);
+      let loanRemaining = Math.max(0, loanPrice - loanAlreadyPaid);
 
-      if (remainingPayment <= 0 && loanRemaining === 0) {
-        bulkOps.push({
-          updateOne: {
-            filter: { _id: loan._id },
-            update: {
-              $set: {
-                total: 0,
-                receivable: loanPrice,
-                totalBalance: totalBalanceSum,
-                remainingCash, // 🔥 uniform remainingCash
-                status: "N",
-              },
-            },
-          },
-        });
-        continue;
-      }
+      const isFullyPaid = loanRemaining === 0 && (Number(loan.total) || 0) === 0;
 
+      // Handle fully paid loans and loans after payment is exhausted
       if (remainingPayment <= 0) {
+        // If payment is exhausted, just update the loan-level master fields
+        // to ensure they reflect the latest global values.
         bulkOps.push({
           updateOne: {
             filter: { _id: loan._id },
             update: {
               $set: {
-                total: loanRemaining,
+                total: loanRemaining, // total field reflects remaining for this item
                 totalBalance: totalBalanceSum,
-                remainingCash, // 🔥 uniform remainingCash
+                remainingCash: masterRemainingCash, // 🔥 Use the MASTER remainingCash
+                status: isFullyPaid ? "N" : "Y",
               },
             },
           },
@@ -94,11 +88,13 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
         continue;
       }
 
+      // Process payment application
       const paymentForThisLoan = Math.min(loanRemaining, remainingPayment);
       const newReceivableForLoan = loanAlreadyPaid + paymentForThisLoan;
       const newLoanTotalRemaining = Math.max(0, loanPrice - newReceivableForLoan);
 
       remainingPayment -= paymentForThisLoan;
+      loanRemaining = newLoanTotalRemaining; // Update local tracker
 
       bulkOps.push({
         updateOne: {
@@ -106,9 +102,9 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
           update: {
             $set: {
               receivable: newReceivableForLoan,
-              total: newLoanTotalRemaining,
+              total: newLoanTotalRemaining, // total field reflects remaining for this item
               totalBalance: totalBalanceSum,
-              remainingCash, // 🔥 same for every loan
+              remainingCash: masterRemainingCash, // 🔥 Use the MASTER remainingCash
               status: newLoanTotalRemaining === 0 ? "N" : "Y",
             },
           },
@@ -119,25 +115,29 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     if (bulkOps.length > 0) {
       await Loans.bulkWrite(bulkOps);
     }
-
+    
+    // 7. Update all loans one last time to ensure consistency of master fields
+    // This is consistent with your original code's intention to unify the master fields
     await Loans.updateMany(
       { customerId },
-      { $set: { totalBalance: totalBalanceSum, remainingCash } }
+      { $set: { totalBalance: totalBalanceSum, remainingCash: masterRemainingCash } }
     );
 
+    // 8. Fetch updated loans for response
     const updatedLoans = await Loans.find({ customerId }).populate("customerId").lean();
 
+    // 9. Send response
     res.status(200).json({
       message: "Receivable updated successfully.",
       totalBalance: totalBalanceSum,
       paidThisTime: numericPaid,
       totalPaid,
-      remainingCash, 
+      remainingCash: masterRemainingCash, // 🔥 The main master value in the response
       receivable: {
         _id: newReceivableDoc._id,
         totalBalance: newReceivableDoc.totalBalance,
         paidCash: newReceivableDoc.paidCash,
-        remainingCash, 
+        remainingCash: newReceivableDoc.remainingCash, // The value stored in the new document (which is the master value)
       },
       updatedLoans, 
     });
@@ -145,8 +145,6 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
     handleError(res, e);
   }
 };
-
-
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
