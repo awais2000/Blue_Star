@@ -11,10 +11,11 @@ export interface ILoans extends Document {
     receivable: number;
     date: Date;
     total: number
+    totalBalance: number; 
+    remainingCash: number;
     status: string; 
     createdAt: Date;
 };
-
 
 
 const LoansScehma = new mongoose.Schema({
@@ -30,6 +31,8 @@ const LoansScehma = new mongoose.Schema({
   receivable: Number,
   date: Date,
   total: Number,
+  totalBalance: Number,
+  remainingCash: Number,
   status: { type: String, default: "Y" },
 }, { timestamps: true });
 

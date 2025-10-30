@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import Loans from "../models/Loans";
 import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
-import Receivables from "../models/Receivable";
 
 
 // export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
@@ -96,7 +95,6 @@ import Receivables from "../models/Receivable";
 //   }
 // };
 
-
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -108,9 +106,8 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       return;
     }
 
-    const rate = Number(price); // per-unit rate
+    const rate = Number(price);
     const numericQuantity = Number(quantity);
-
     if (isNaN(rate) || isNaN(numericQuantity)) {
       res.status(400).send("Invalid price or quantity: both must be numbers");
       return;
@@ -118,34 +115,45 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
 
     const loanTotal = rate * numericQuantity;
 
-    // --- Changed: fetch existing loans sorted so we can use latest cumulative total ---
+    // --- Fetch existing loans ---
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
 
-    // If there are existing loans, use the last loan's total (cumulative total after receivables),
-    // otherwise start from 0. This ensures receivable reductions are respected.
-    const existingTotal = (customerLoans && customerLoans.length > 0)
+    // Calculate current overall total
+    const existingTotal = customerLoans.length
       ? Number(customerLoans[customerLoans.length - 1].total) || 0
       : 0;
-
     const overallTotal = existingTotal + loanTotal;
-    // -------------------------------------------------------------------------------
 
+    // --- Create new loan record ---
     const newLoan = await Loans.create({
       productName,
       customerId,
-      rate,               // per-unit price
-      price: loanTotal,   // total for this loan (rate * qty)
+      rate,
+      price: loanTotal,
       quantity: numericQuantity,
       date,
-      total: overallTotal, // cumulative total for the customer
+      total: overallTotal,
+      totalBalance: 0, // temporary, will update below
+      remainingCash: 0,
       status: "Y",
     });
 
+    // ⚙️ Recalculate the true totalBalance (including this new loan)
+    const updatedLoansAfterInsert = await Loans.find({ customerId, status: "Y" }).lean();
+    const newTotalBalance = updatedLoansAfterInsert.reduce(
+      (sum, l) => sum + (Number(l.price) || 0),
+      0
+    );
+
+    // 🔁 Update totalBalance for all active loans of this customer
+    await Loans.updateMany(
+      { customerId, status: "Y" },
+      { $set: { totalBalance: newTotalBalance } }
+    );
+
+    // 🧩 Re-fetch newly created loan (with updated totalBalance)
     const populatedLoan = await Loans.findById(newLoan._id)
-      .populate({
-        path: "customerId",
-        match: { status: "Y" },
-      })
+      .populate({ path: "customerId", match: { status: "Y" } })
       .lean();
 
     if (!populatedLoan) {
@@ -157,56 +165,61 @@ export const addLoan = async (req: express.Request, res: express.Response): Prom
       _id: populatedLoan._id,
       customerId: (populatedLoan.customerId as any)?._id || null,
       customerName: (populatedLoan.customerId as any)?.customerName || null,
-      rate: populatedLoan.rate, // per-unit rate
-      price: populatedLoan.price, // total for that product
+      rate: populatedLoan.rate,
+      price: populatedLoan.price,
       quantity: populatedLoan.quantity,
-      loanTotal, // total for this loan
+      loanTotal,
       receivable: populatedLoan.receivable ?? 0,
-      total: populatedLoan.total, // cumulative customer total
+      total: populatedLoan.total,
+      totalBalance: newTotalBalance,
       date: populatedLoan.date,
       status: populatedLoan.status,
       createdAt: populatedLoan.createdAt,
     };
 
-    const existingReceivableSum = customerLoans.reduce(
+    // 🧾 Compute sum of receivables (already paid) for reference
+    const existingReceivableSum = updatedLoansAfterInsert.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
-    const newReceivable = Number(populatedLoan.receivable) || 0;
-    const receivable = existingReceivableSum + newReceivable;
 
+    // ✅ Send consistent response
     res.status(200).json({
+      message: "Loan added successfully.",
       total: overallTotal,
-      receivable,
+      totalBalance: newTotalBalance,
+      receivable: existingReceivableSum,
       loan: flattenedLoan,
     });
-
   } catch (e) {
     handleError(res, e);
   }
 };
 
 
-
 export const getLoanById = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { id } = req.params; // customerId
 
+    // 1️⃣ Fetch active loans for this customer
     const loans = await Loans.find({ status: "Y", customerId: id })
       .sort({ createdAt: 1 })
       .populate("customerId")
       .lean();
 
+    // 2️⃣ Handle no results case
     if (!loans || loans.length === 0) {
       res.status(200).json({
         message: "No loan details found!",
-        total: 0,
+        totalBalance: 0,
         receivable: 0,
+        remainingCash: 0,
         loans: [],
       });
       return;
     }
 
+    // 3️⃣ Flatten loans for clean frontend structure
     const flattenedLoans = loans.map((loan) => {
       const customer =
         typeof loan.customerId === "object" ? loan.customerId : { _id: loan.customerId };
@@ -219,27 +232,39 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         price: loan.price ?? 0,
         quantity: loan.quantity ?? 0,
         receivable: loan.receivable ?? 0,
-        total: loan.total ?? 0,
+        totalBalance: loan.totalBalance ?? 0,
+        remainingCash: loan.remainingCash ?? 0,
         date: loan.date,
         status: loan.status,
         createdAt: loan.createdAt,
       };
     });
 
-    const receivable = flattenedLoans.reduce(
+    // 4️⃣ Compute aggregate values based on the actual schema flow
+    const totalBalance = flattenedLoans.reduce(
+      (sum, loan) => sum + (Number(loan.price) || 0),
+      0
+    );
+
+    const totalPaid = flattenedLoans.reduce(
       (sum, loan) => sum + (Number(loan.receivable) || 0),
       0
     );
 
-    const total = (Number(loans[loans.length - 1].total) || 0) - receivable;
-    const lastLoanId = loans[loans.length - 1]._id;
+    const remainingCash = Math.max(0, totalBalance - totalPaid);
 
-    console.log("last loan", lastLoanId);
-    console.log("total:", Number(loans[loans.length - 1].total), "receivable:", receivable, "calculated total:", total);
+    // 5️⃣ Update all loans' totalBalance + remainingCash for consistency
+    await Loans.updateMany(
+      { customerId: id, status: "Y" },
+      { $set: { totalBalance, remainingCash } }
+    );
 
+    // 6️⃣ Return consistent, clear data
     res.status(200).json({
-      total,
-      receivable,
+      message: "Loan details fetched successfully.",
+      totalBalance,
+      totalPaid,
+      remainingCash,
       loans: flattenedLoans,
     });
   } catch (e) {
