@@ -5,6 +5,7 @@ import { handleError } from "../utils/errorHandler";
 import { IProducts } from "../models/Products";
 import Loans from "../models/Loans";
 
+
 export const addReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerId, date, paidCash } = req.body;
@@ -22,52 +23,35 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // --- fetch loans ---
     const customerLoans = await Loans.find({ status: "Y", customerId }).sort({ createdAt: 1 }).lean();
     if (!customerLoans.length) {
       res.status(404).json({ message: "No active loans found for this customer." });
       return;
     }
 
-    // --- sum of all loan prices ---
-    const totalLoanSum = customerLoans.reduce(
+    const totalBalanceSum = customerLoans.reduce(
       (sum, l) => sum + (Number(l.price) || 0),
       0
     );
 
-    // --- get previous receivables ---
-    const prevReceivables = await Receivables.find({ customerId, status: "Y" })
-      .sort({ createdAt: 1 })
-      .lean();
-
+    const prevReceivables = await Receivables.find({ customerId, status: "Y" }).lean();
     const prevPaidSum = prevReceivables.reduce(
       (sum, r) => sum + (Number(r.paidCash) || 0),
       0
     );
 
-    // 🔥 key difference here:
-    // if there are previous receivables, totalBalance = last remainingCash
-    // else (first time), totalBalance = totalLoanSum
-    const previousRemainingCash =
-      prevReceivables.length > 0
-        ? Number(prevReceivables[prevReceivables.length - 1].remainingCash) || 0
-        : totalLoanSum;
-
-    const totalBalance = previousRemainingCash;
     const totalPaid = prevPaidSum + numericPaid;
-    const remainingCash = Math.max(0, totalBalance - numericPaid); // only subtract this round’s payment
+    const remainingCash = Math.max(0, totalBalanceSum - totalPaid); // 🔥 MASTER remainingCash
 
-    // --- create new receivable ---
     const newReceivableDoc = await Receivables.create({
       customerId,
       date,
-      totalBalance,
+      totalBalance: totalBalanceSum,
       paidCash: numericPaid,
-      remainingCash,
+      remainingCash, // use global remainingCash
       status: "Y",
     });
 
-    // --- distribute payments to loans ---
     let remainingPayment = numericPaid;
     const bulkOps: any[] = [];
 
@@ -84,8 +68,8 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
               $set: {
                 total: 0,
                 receivable: loanPrice,
-                totalBalance,
-                remainingCash,
+                totalBalance: totalBalanceSum,
+                remainingCash, // 🔥 uniform remainingCash
                 status: "N",
               },
             },
@@ -101,8 +85,8 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
             update: {
               $set: {
                 total: loanRemaining,
-                totalBalance,
-                remainingCash,
+                totalBalance: totalBalanceSum,
+                remainingCash, // 🔥 uniform remainingCash
               },
             },
           },
@@ -113,6 +97,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
       const paymentForThisLoan = Math.min(loanRemaining, remainingPayment);
       const newReceivableForLoan = loanAlreadyPaid + paymentForThisLoan;
       const newLoanTotalRemaining = Math.max(0, loanPrice - newReceivableForLoan);
+
       remainingPayment -= paymentForThisLoan;
 
       bulkOps.push({
@@ -122,8 +107,8 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
             $set: {
               receivable: newReceivableForLoan,
               total: newLoanTotalRemaining,
-              totalBalance,
-              remainingCash,
+              totalBalance: totalBalanceSum,
+              remainingCash, // 🔥 same for every loan
               status: newLoanTotalRemaining === 0 ? "N" : "Y",
             },
           },
@@ -137,29 +122,30 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
 
     await Loans.updateMany(
       { customerId },
-      { $set: { totalBalance, remainingCash } }
+      { $set: { totalBalance: totalBalanceSum, remainingCash } }
     );
 
     const updatedLoans = await Loans.find({ customerId }).populate("customerId").lean();
 
     res.status(200).json({
       message: "Receivable updated successfully.",
-      totalBalance, // now correctly previous remainingCash
+      totalBalance: totalBalanceSum,
       paidThisTime: numericPaid,
       totalPaid,
-      remainingCash,
+      remainingCash, // 🔥 global value returned
       receivable: {
         _id: newReceivableDoc._id,
         totalBalance: newReceivableDoc.totalBalance,
         paidCash: newReceivableDoc.paidCash,
-        remainingCash: newReceivableDoc.remainingCash,
+        remainingCash, // 🔥 same value stored
       },
-      updatedLoans,
+      updatedLoans, 
     });
   } catch (e) {
     handleError(res, e);
   }
 };
+
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
