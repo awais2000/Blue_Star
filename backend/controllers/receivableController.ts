@@ -166,44 +166,64 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
 
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params; // customerId
 
     if (!id) {
       res.status(400).json({ message: "Customer ID is required" });
       return;
     }
 
+    // 1️⃣ Get all receivables for this customer
     const receivables = await Receivables.find({ customerId: id, status: "Y" })
       .sort({ createdAt: 1 })
       .populate("customerId")
       .lean();
 
     if (!receivables || receivables.length === 0) {
-      res.status(404).json({ message: "No receivable records found for this customer." });
+        message: "No receivable records found for this customer.",
+        totalBalance: 0,
+        totalPaid: 0,
+        remainingCash: 0,
+        receivables: [],
+      });
       return;
     }
 
+    // 2️⃣ Flatten the receivables data for clean output
     const flattenedData = receivables.map((r) => ({
       _id: r._id,
       customerId: r.customerId?._id || null,
       customerName: (r.customerId as any)?.customerName || null,
       date: r.date,
-      totalBalance: r.totalBalance,
-      paidCash: r.paidCash,
-      remainingCash: r.remainingCash,
+      totalBalance: Number(r.totalBalance) || 0,
+      paidCash: Number(r.paidCash) || 0,
+      remainingCash: Number(r.remainingCash) || 0,
       status: r.status,
       createdAt: r.createdAt,
     }));
 
-    const totalPaid = receivables.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
-    const totalBalance = receivables[receivables.length - 1].totalBalance;
+    // 3️⃣ Calculate totalPaid (sum of all receivables)
+    const totalPaid = flattenedData.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
 
-    res.status(200).json({
+    // 4️⃣ Fetch total loan balance (sum of all loan.price)
+    const activeLoans = await Loans.find({ customerId: id, status: "Y" }).lean();
+    const totalBalance = activeLoans.reduce((sum, l) => sum + (Number(l.price) || 0), 0);
+
+    // 5️⃣ Compute remaining cash
+    const remainingCash = Math.max(0, totalBalance - totalPaid);
+
+    // 6️⃣ Update all loans’ totalBalance + remainingCash for consistency
+    await Loans.updateMany(
+      { customerId: id, status: "Y" },
+      { $set: { totalBalance, remainingCash } }
+    );
+
+    // 7️⃣ Return consistent structure
+     res.status(200).json({
       totalPaid,
-      totalBalance: totalBalance,
+      totalBalance,
       receivables: flattenedData,
     });
-
   } catch (e) {
     handleError(res, e);
   }
