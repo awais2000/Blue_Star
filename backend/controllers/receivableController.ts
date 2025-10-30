@@ -146,6 +146,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+
 export const getReceivableDataById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params; // customerId
@@ -172,18 +173,28 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
       return;
     }
 
-    // 2️⃣ Flatten the receivables data for clean output
-    const flattenedData = receivables.map((r) => ({
-      _id: r._id,
-      customerId: r.customerId?._id || null,
-      customerName: (r.customerId as any)?.customerName || null,
-      date: r.date,
-      totalBalance: Number(r.totalBalance) || 0,
-      paidCash: Number(r.paidCash) || 0,
-      remainingCash: Number(r.remainingCash) || 0,
-      status: r.status,
-      createdAt: r.createdAt,
-    }));
+    // 2️⃣ Flatten the receivables data for clean output - MODIFIED HERE
+    const flattenedData = receivables.map((r) => {
+      // Ensure values are numbers, defaulting to 0
+      const totalBalance = Number(r.totalBalance) || 0;
+      const paidCash = Number(r.paidCash) || 0;
+
+      // Recalculate remainingCash for the individual receivable record
+      // Based on the difference between its totalBalance and paidCash.
+      const remainingCash = Math.max(0, totalBalance - paidCash); 
+
+      return {
+        _id: r._id,
+        customerId: r.customerId?._id || null,
+        customerName: (r.customerId as any)?.customerName || null,
+        date: r.date,
+        totalBalance: totalBalance, // Using the ensured number value
+        paidCash: paidCash,         // Using the ensured number value
+        remainingCash: remainingCash, // <--- **This is the main change**
+        status: r.status,
+        createdAt: r.createdAt,
+      }
+    });
 
     // 3️⃣ Calculate totalPaid (sum of all receivables)
     const totalPaid = flattenedData.reduce((sum, r) => sum + (Number(r.paidCash) || 0), 0);
@@ -202,7 +213,7 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
     );
 
     // 7️⃣ Return consistent structure
-     res.status(200).json({
+      res.status(200).json({
       message: "Loan details fetched successfully.",
       totalBalance,
       totalPaid,
@@ -213,7 +224,6 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
     handleError(res, e);
   }
 };
-
 
 export const updateReceivable = async (req: Request, res: Response): Promise<void> => {
   try {
