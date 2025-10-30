@@ -180,6 +180,7 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
       .lean();
 
     if (!receivables || receivables.length === 0) {
+      res.status(200).json({
         message: "No receivable records found for this customer.",
         totalBalance: 0,
         totalPaid: 0,
@@ -228,7 +229,6 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
     handleError(res, e);
   }
 };
-
 
 
 export const updateReceivable = async (req: Request, res: Response): Promise<void> => {
