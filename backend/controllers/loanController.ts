@@ -95,6 +95,7 @@ import { IProducts } from "../models/Products";
 //   }
 // };
 
+
 export const addLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { productName, customerId, price, quantity, date } = req.body;
@@ -271,6 +272,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
     handleError(res, e);
   }
 };
+
 
 export const updateLoan = async (req: express.Request, res: express.Response): Promise<void> => {
   try {
