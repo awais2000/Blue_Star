@@ -221,8 +221,10 @@ export const getReceivableDataById = async (req: Request, res: Response): Promis
 
     // 7️⃣ Return consistent structure
      res.status(200).json({
-      totalPaid,
+      message: "Loan details fetched successfully.",
       totalBalance,
+      totalPaid,
+      remainingCash,
       receivables: flattenedData,
     });
   } catch (e) {
