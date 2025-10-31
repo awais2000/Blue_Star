@@ -80,7 +80,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
                 total: loanRemaining, // total field reflects remaining for this item
                 totalBalance: totalBalanceSum,
                 remainingCash: masterRemainingCash, // 🔥 Use the MASTER remainingCash
-                status: isFullyPaid ? "N" : "Y",
+                // status: isFullyPaid ? "N" : "Y",
               },
             },
           },
@@ -105,7 +105,7 @@ export const addReceivable = async (req: Request, res: Response): Promise<void> 
               total: newLoanTotalRemaining, // total field reflects remaining for this item
               totalBalance: totalBalanceSum,
               remainingCash: masterRemainingCash, // 🔥 Use the MASTER remainingCash
-              status: newLoanTotalRemaining === 0 ? "N" : "Y",
+            //   status: newLoanTotalRemaining === 0 ? "N" : "Y",
             },
           },
         },
