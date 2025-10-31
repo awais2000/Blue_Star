@@ -232,6 +232,7 @@ export const getLoanById = async (req: express.Request, res: express.Response): 
         customerName: (customer as any)?.customerName || null,
         price: loan.price ?? 0,
         quantity: loan.quantity ?? 0,
+        rate: loan.rate ?? 0,
         receivable: loan.receivable ?? 0,
         totalBalance: loan.totalBalance ?? 0,
         remainingCash: loan.remainingCash ?? 0,
