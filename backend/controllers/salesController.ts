@@ -359,7 +359,7 @@ export const printSalesData = async (
 
     const customerName = getSalesData.customerName || "";
     const customerContact = getSalesData.customerContact || "";
-    const customerTRN = getSalesData.customerTRN || "";
+    const customerTRN = getSalesData.customerTRN || "Nil";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
     const realtime = getSalesData.createdAt || 0;
@@ -647,7 +647,7 @@ export const printSalesData = async (
                 <td>${customerContact}</td>
               </tr>
               <tr>
-                <td><strong>TRN#</strong></td>
+                <td><strong>Customer TRN#</strong></td>
                 <td>${customerTRN}</td>
               </tr>
             </table>
@@ -808,8 +808,8 @@ export const printSalesData = async (
                 <div class="info-section">
                   <div class="info-block">
                     <p><strong>Customer</strong> ${customerName}</p>
-                    <p><strong>Customer</strong> ${customerTRN}</p>
                     <p><strong>Contact#</strong> ${customerContact}</p>
+                    <p><strong>Customer TRN</strong> ${customerTRN}</p>
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong>${date}</p>
@@ -1196,7 +1196,7 @@ export const getSalesData = async (
           <td>${customerContact}</td>
         </tr>
         <tr>
-            <td><strong>TRN#</strong></td>
+            <td><strong>Customer TRN#</strong></td>
             <td>${customerTRN}</td>
               </tr>
       </table>
@@ -1356,7 +1356,7 @@ export const getSalesData = async (
                   <div class="info-block">
                     <p><strong>Customer</strong> ${customerName}</p>
                     <p><strong>Contact#</strong> ${customerContact}</p>
-                    <p><strong>Customer</strong> ${customerTRN}</p>
+                    <p><strong>Customer TRN</strong> ${customerTRN}</p>
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong> ${date.toLocaleString().slice(0, 9)}</p>
@@ -1543,7 +1543,7 @@ export const getSalesDataById = async (
 
     const customerName = getSalesData.customerName || "";
     const customerContact = getSalesData.customerContact || "";
-    const customerTRN = getSalesData.customerTRN || "";
+    const customerTRN = getSalesData.customerTRN || "Nil";
     const date = new Date(getSalesData.date).toLocaleDateString();
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
     const realtime = getSalesData.createdAt || 0;
@@ -1827,7 +1827,7 @@ const formattedNewDiscount = formatCurrency(newDiscount);
                 <td>${customerContact}</td>
               </tr>
               <tr>
-                <td><strong>TRN#</strong></td>
+                <td><strong>Customer TRN#</strong></td>
                 <td>${customerTRN}</td>
               </tr>
             </table>
@@ -1987,7 +1987,7 @@ const formattedNewDiscount = formatCurrency(newDiscount);
                   <div class="info-block">
                     <p><strong>Customer</strong> ${customerName}</p>
                     <p><strong>Contact#</strong> ${customerContact}</p>
-                    <p><strong>Customer</strong> ${customerTRN}</p>
+                    <p><strong>Customer TRN</strong> ${customerTRN}</p>
                   </div>
                   <div class="info-block">
                     <p><strong>Date</strong> ${date}</p>
