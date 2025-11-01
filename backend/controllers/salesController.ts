@@ -974,41 +974,41 @@ export const printSalesData = async (
     } else { // WITH VAT (Standard Scenario from Image)
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
-          // const itemRate = formatCurrency(item.rate);
-          // const vatAmount = formatCurrency(item.VAT);
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
           
-          // // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
-          // const itemBasePrice = Number(item.rate) * Number(item.qty);
-          // const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-          // const itemNetTotal = formatCurrency(itemNetTotalValue); 
-          const qty = Number(item.qty) || 0;
-          const unitPrice = Number(item.rate) || 0;
-          const discount = Number(item.discount) || 0;
-          const VATtax = Number(item.VAT) || 0;
-
-          // --- withVAT logic replicated exactly ---
-          let withRate = unitPrice;
-
-          // Remove VAT portion per unit
-          withRate -= VATtax / qty;
-
-          // Base total excluding VAT & discount
-          const itemBasePrice = withRate * qty;  
-
-          // Apply discount (like backend)
-          const total = roundToTwoDecimals(itemBasePrice - discount);
-
-          // Another discount tracking (optional)
-          const anotherDiscount = discount;
-
-          // Net total = original rate * qty (same as backend baseTotalExclDisc)
-          const itemNetTotalValue = roundToTwoDecimals(unitPrice * qty); 
-
-          // Preserve your display variable names
-          const itemRate = formatCurrency(withRate);   
-          const vatAmount = formatCurrency(VATtax);   
+          // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
+          const itemBasePrice = Number(item.rate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-                    
+          // const qty = Number(item.qty) || 0;
+          // const unitPrice = Number(item.rate) || 0;
+          // const discount = Number(item.discount) || 0;
+          // const VATtax = Number(item.VAT) || 0;
+
+          // // --- withVAT logic replicated exactly ---
+          // let withRate = unitPrice;
+
+          // // Remove VAT portion per unit
+          // withRate -= VATtax / qty;
+
+          // // Base total excluding VAT & discount
+          // const itemBasePrice = withRate * qty;  
+
+          // // Apply discount (like backend)
+          // const total = roundToTwoDecimals(itemBasePrice - discount);
+
+          // // Another discount tracking (optional)
+          // const anotherDiscount = discount;
+
+          // // Net total = original rate * qty (same as backend baseTotalExclDisc)
+          // const itemNetTotalValue = roundToTwoDecimals(unitPrice * qty); 
+
+          // // Preserve your display variable names
+          // const itemRate = formatCurrency(withRate);   
+          // const vatAmount = formatCurrency(VATtax);   
+          // const itemNetTotal = formatCurrency(itemNetTotalValue); 
+
           return `
             <tr>
               <td>${item.productName}</td>
