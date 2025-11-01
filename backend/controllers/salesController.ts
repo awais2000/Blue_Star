@@ -184,12 +184,11 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
                 // withVAT
                 let  withRate = Number(rest.unitPrice || 0);
                 
-                withRate -= VATtax;  //95
+                withRate -= VATtax/qty;  //95
 
                 rate = withRate;  //95
 
                 const baseTotalExclDisc2 = withRate * qty; //95 * 1
-
 
                 finalDiscount = roundToTwoDecimals(discount);  
 
