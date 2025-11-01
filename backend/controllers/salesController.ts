@@ -989,7 +989,7 @@ export const printSalesData = async (
         .join("");
 
       // Display Discount: Use the simple total discount sum
-      newDiscount = totalDiscountSum + sumOfVat; 
+      newDiscount = totalDiscountSum; 
       
     } else { // WITH VAT (Standard Scenario from Image)
       itemRows = (getSalesData.products || [])
