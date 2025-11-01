@@ -160,7 +160,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
         cartItems.forEach(item => {
             const { productId: product, ...rest } = item;
 
-            const rate = Number(rest.unitPrice || 0);
+            const  rate = Number(rest.unitPrice || 0);
             const qty = Number(rest.QTY || 0);
             const discount = Number(rest.discount || 0);
             const selectVAT = rest.VATstatus === "withVAT"; 
@@ -174,6 +174,11 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 
             //withoutVAT
             if (selectVAT) {
+                let  withRate = Number(rest.unitPrice || 0);
+                
+                withRate -= VATtax;
+
+                const baseTotalExclDisc = withRate * qty;
                 
                 total = roundToTwoDecimals(baseTotalExclDisc - discount);
                 
