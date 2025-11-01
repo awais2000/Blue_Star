@@ -976,6 +976,8 @@ export const printSalesData = async (
           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
           const itemNetTotal = formatCurrency(itemNetTotalValue); 
 
+          sumOfTotal -= Number(vatAmount);
+
           
           return `
             <tr>
