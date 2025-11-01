@@ -321,5 +321,3 @@ export const updateReceivable = async (req: Request, res: Response): Promise<voi
     handleError(res, e);
   }
 };
-
-

@@ -14,6 +14,7 @@ export interface IInvoiceProduct {
 export interface ISalesDetail extends Document {
   customerName: string;
   customerContact: string;
+  customerTRN: string;
   products: IInvoiceProduct[];
   grandTotal: number;
   invoiceNo: number;
@@ -28,6 +29,7 @@ const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
   {
     customerName: { type: String, required: true, trim: true },
     customerContact: { type: String, required: true, trim: true },
+    customerTRN: {type: String},
     products: [
       {
         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },

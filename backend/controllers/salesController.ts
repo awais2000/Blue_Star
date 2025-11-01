@@ -63,6 +63,85 @@ export const addProductToCart = async (req: express.Request, res: express.Respon
 };
 
 
+// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
+//     try {
+//         const cartItems = await (TempProducts as any).find()
+//             .populate("productId")
+//             .lean();
+
+//         if (!cartItems || cartItems.length === 0) {
+//             res.status(404).json({ items: [], grandTotal: 0 }); // Better 404 response
+//             return;
+//         }
+
+//         const allItems: any[] = [];
+
+//         let anotherDiscount = 0;
+
+//         cartItems.forEach(item => {
+//             const { productId: product, ...rest } = item;
+
+//             const rate = Number(rest.unitPrice || 0);
+//             const qty = Number(rest.QTY || 0);
+//             const discount = Number(rest.discount || 0);
+//             const selectVAT = rest.VATstatus === "withVAT"; 
+
+//             const baseTotalExclDisc = rate * qty;
+//             const VATtax = roundToTwoDecimals((baseTotalExclDisc * 5) / 100);
+
+//             let total: number;        
+//             let netTotal: number;     // Item Net Total (Final Price)
+//             let finalDiscount: number; // Discount value to return
+
+//             //withoutVAT
+//             if (selectVAT) {
+                
+//                 total = roundToTwoDecimals(baseTotalExclDisc - discount);
+                
+//                 netTotal = roundToTwoDecimals(total + VATtax);
+                
+//                 finalDiscount = discount; // Return original discount amount
+//             } else {
+//                 // withVAT
+//                 finalDiscount = roundToTwoDecimals(discount + VATtax); 
+
+//                 total = roundToTwoDecimals(baseTotalExclDisc - discount) - VATtax; 
+//                 anotherDiscount = discount;
+
+//                 netTotal = roundToTwoDecimals(baseTotalExclDisc); 
+//             }
+
+//             allItems.push({
+//                 productId: (product as any)?._id,
+//                 productName: (product as any)?.productName,
+//                 qty,
+//                 rate: roundToTwoDecimals(rate),
+//                 discount: finalDiscount, 
+//                 VAT: VATtax,
+//                 total,
+//                 netTotal,
+//             });
+//         });
+
+//         const newgrandTotal = roundToTwoDecimals(
+//             allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0)
+//         );
+
+//         const grandTotal = newgrandTotal - anotherDiscount;
+
+//         console.log("anotherDiscount", anotherDiscount);
+
+//         res.status(200).json({
+//             items: allItems,
+//             grandTotal,
+//         });
+//     } catch (error) {
+//         (handleError as any)(res, error);
+//     }
+// };
+
+
+
 export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
     try {
         const cartItems = await (TempProducts as any).find()
@@ -84,38 +163,30 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
             const rate = Number(rest.unitPrice || 0);
             const qty = Number(rest.QTY || 0);
             const discount = Number(rest.discount || 0);
-            const selectVAT = rest.VATstatus === "withVAT"; // true if selectVAT, false if withoutVAT
+            const selectVAT = rest.VATstatus === "withVAT"; 
 
-            // 1. Base Calculation (VAT is 5% based on Rate * Qty)
             const baseTotalExclDisc = rate * qty;
             const VATtax = roundToTwoDecimals((baseTotalExclDisc * 5) / 100);
 
-            let total: number;        // Item Total (Excl. VAT, usually Incl. Discount)
+            let total: number;        
             let netTotal: number;     // Item Net Total (Final Price)
             let finalDiscount: number; // Discount value to return
 
+            //withoutVAT
             if (selectVAT) {
-                // --- LOGIC: WITH VAT (Standard Discount on Base Price) ---
                 
-                // Total (Excl. VAT): Base price minus original discount
                 total = roundToTwoDecimals(baseTotalExclDisc - discount);
                 
-                // Net Total (Incl. VAT): Total (Excl. VAT) plus VAT tax
                 netTotal = roundToTwoDecimals(total + VATtax);
                 
                 finalDiscount = discount; // Return original discount amount
             } else {
-                // --- LOGIC: WITHOUT VAT (Custom Requirement Applied) ---
-                
-                // Requirement 1: discount = original discount + VAT tax
+                // withVAT
                 finalDiscount = roundToTwoDecimals(discount + VATtax); 
 
-                // Total (Excl. VAT): Use the price before discount and VAT deduction
-                // (Assumes the 'total' field should still reflect the base price minus discount, excluding VAT)
                 total = roundToTwoDecimals(baseTotalExclDisc - discount) - VATtax; 
                 anotherDiscount = discount;
 
-                // Requirement 2: netTotal = total price (rate * qty) + VAT tax (NO original discount deducted)
                 netTotal = roundToTwoDecimals(baseTotalExclDisc); 
             }
 
@@ -179,7 +250,7 @@ export const createSaleData = async (
   res: express.Response
 ): Promise<void> => {
   try {
-    const { customerName, customerContact, grandTotal, date } = req.body;
+    const { customerName, customerContact, customerTRN, grandTotal, date } = req.body;
 
     const tempProducts = await TempProducts.find()
       .populate("productId")
@@ -231,6 +302,7 @@ export const createSaleData = async (
     const newSale = await SalesDetail.create({
       customerName,
       customerContact,
+      customerTRN,
       products: productsArray,
       grandTotal,
       invoiceNo: currentInvoiceNo,
@@ -299,7 +371,6 @@ export const printSalesData = async (
     let newDiscount = 0; // Discount amount for the 'Disc' summary line
     let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
 
-    // --- Calculate Totals First (Consolidated) ---
     // Calculate unformatted sums needed for final totals
     sumOfTotal = (getSalesData.products || []).reduce(
       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
@@ -887,6 +958,7 @@ export const getSalesData = async (
       return {
         customerName: invoice.customerName,
         customerContact: invoice.customerContact,
+        customerTRN: invoice.customerTRN,
         products,
         grandTotal: invoice.grandTotal,
         sumOfVat,

@@ -149,7 +149,6 @@ export const fgetSalesDataById = async (
     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
     const time = getSalesData.createdAt || 0;
 
-    // const theTime = formatDateTime(time);
     // console.log(time);
 
     let itemRows = "";
@@ -157,7 +156,6 @@ export const fgetSalesDataById = async (
     let sumOfVat = 0;       // Summary VAT (Total VAT amount)
     let totalDiscountSum = 0; // Sum of all item discounts (used for accurate final calculation)
     
-    // Calculate unformatted sums needed for final totals BEFORE the conditional logic begins
     sumOfTotal = (getSalesData.products || []).reduce(
       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
       0
@@ -175,7 +173,6 @@ export const fgetSalesDataById = async (
     
     let newDiscount: number; // The specific discount amount to display on the 'Disc' line
 
-    // --- Conditional Mapping and Calculations (VAT Status Logic) ---
 if (getvatstatus === "withoutVAT") {
   itemRows = (getSalesData.products || [])
     .map((item: any) => {
