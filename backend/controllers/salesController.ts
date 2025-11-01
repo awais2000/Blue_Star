@@ -193,7 +193,7 @@ export const getProductInCart = async (req: express.Request, res: express.Respon
 
                 finalDiscount = roundToTwoDecimals(discount);  
 
-                total = roundToTwoDecimals(baseTotalExclDisc2 - discount) + VATtax; 
+                total = roundToTwoDecimals(baseTotalExclDisc2 - discount); 
 
                 anotherDiscount = discount;
 
