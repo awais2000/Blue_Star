@@ -21,12 +21,13 @@ const businessConfig = {
 let invoiceNoNew;
 
 
+
 export const fcreateSaleData = async (
   req: express.Request,
   res: express.Response
 ): Promise<void> => {
   try {
-    const { customerName, customerContact, grandTotal, date } = req.body;
+    const { customerName, customerContact, customerTRN, grandTotal, date } = req.body;
 
     const tempProducts = await TempProducts.find()
       .populate("productId")
@@ -78,6 +79,7 @@ export const fcreateSaleData = async (
     const newSale = await fakeSalesDetail.create({
       customerName,
       customerContact,
+      customerTRN,
       products: productsArray,
       grandTotal,
       invoiceNo: currentInvoiceNo,
@@ -97,6 +99,7 @@ export const fcreateSaleData = async (
     handleError(res, error);
   }
 };
+
 
 
 export const fgetSalesDataById = async (
@@ -1719,3 +1722,4 @@ export const fgetSalesData = async (
     handleError(res, error);
   }
 };
+
