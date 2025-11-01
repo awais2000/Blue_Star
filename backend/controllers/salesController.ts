@@ -974,40 +974,33 @@ export const printSalesData = async (
     } else { // WITH VAT (Standard Scenario from Image)
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
-          const itemRate = formatCurrency(item.rate);
+          // let  withRate = Number(rest.unitPrice || 0);
+                
+          //       withRate -= VATtax/qty;  //95
+
+          //       rate = withRate;  //95
+
+          //       const baseTotalExclDisc2 = withRate * qty; //95 * 1
+
+          //       finalDiscount = roundToTwoDecimals(discount);  
+
+          //       total = roundToTwoDecimals(baseTotalExclDisc2 - discount); 
+
+          //       anotherDiscount = discount;
+
+          //       netTotal = roundToTwoDecimals(baseTotalExclDisc);
+
           const vatAmount = formatCurrency(item.VAT);
+
+          let itemRate = Number(item.rate);
+          itemRate -= Number(vatAmount)/Number(item.qty);
+
+
           
           // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
           const itemBasePrice = Number(item.rate) * Number(item.qty);
           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-          // const qty = Number(item.qty) || 0;
-          // const unitPrice = Number(item.rate) || 0;
-          // const discount = Number(item.discount) || 0;
-          // const VATtax = Number(item.VAT) || 0;
-
-          // // --- withVAT logic replicated exactly ---
-          // let withRate = unitPrice;
-
-          // // Remove VAT portion per unit
-          // withRate -= VATtax / qty;
-
-          // // Base total excluding VAT & discount
-          // const itemBasePrice = withRate * qty;  
-
-          // // Apply discount (like backend)
-          // const total = roundToTwoDecimals(itemBasePrice - discount);
-
-          // // Another discount tracking (optional)
-          // const anotherDiscount = discount;
-
-          // // Net total = original rate * qty (same as backend baseTotalExclDisc)
-          // const itemNetTotalValue = roundToTwoDecimals(unitPrice * qty); 
-
-          // // Preserve your display variable names
-          // const itemRate = formatCurrency(withRate);   
-          // const vatAmount = formatCurrency(VATtax);   
-          // const itemNetTotal = formatCurrency(itemNetTotalValue); 
 
           return `
             <tr>
