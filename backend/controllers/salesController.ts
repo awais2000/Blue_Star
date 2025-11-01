@@ -972,9 +972,9 @@ export const printSalesData = async (
           itemRate = formatCurrency(numericItemRate);
 
           // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
-          const itemBasePrice = Number(itemRate) * Number(item.qty);
-          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-          const itemNetTotal = Number(formatCurrency(itemNetTotalValue)) -  Number(item.VAT) ; 
+          const itemBasePrice = Number(itemRate) * Number(item.qty);   
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);     //total in per items 
+          const itemNetTotal = Number(formatCurrency(itemNetTotalValue)) -  Number(item.VAT) ;  //total in overall 
           
           return `
             <tr>
