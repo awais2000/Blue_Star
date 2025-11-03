@@ -1449,6 +1449,7 @@ export const printSalesData = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
+
 export const getSalesData = async (
   req: express.Request,
   res: express.Response
@@ -2156,13 +2157,19 @@ export const getSalesDataById = async (
 if (getvatstatus === "withoutVAT") {
   itemRows = (getSalesData.products || [])
     .map((item: any) => {
-      const itemRate = formatCurrency(item.rate);
-      const vatAmount = formatCurrency(item.VAT);
+      let itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
 
-      const itemBasePrice = Number(item.rate) * Number(item.qty);
-      const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          // Convert itemRate to number before arithmetic
+          const numericItemRate = Number(item.rate) - Number(item.VAT)/Number(item.qty);
+          itemRate = formatCurrency(numericItemRate);
 
-      const itemNetTotal = formatCurrency(itemNetTotalValue);
+          // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
+          const itemBasePrice = Number(itemRate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          const itemNetTotal = formatCurrency(itemNetTotalValue); 
+
+          sumOfTotal -= Number(vatAmount);
 
       return `
         <tr>
@@ -2176,7 +2183,7 @@ if (getvatstatus === "withoutVAT") {
     })
     .join("");
 
-  newDiscount = totalDiscountSum + sumOfVat;  
+  newDiscount = totalDiscountSum;  
   calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
 
 } else {
