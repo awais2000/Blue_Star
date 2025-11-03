@@ -2184,7 +2184,8 @@ if (getvatstatus === "withoutVAT") {
     .join("");
 
   newDiscount = totalDiscountSum;  
-  calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum);
+  // calculatedGrandTotal = Number(sumOfTotal) - Number(totalDiscountSum) + Number(itemRows.vatAmount);
+    calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(totalDiscountSum);
 
 } else {
   itemRows = (getSalesData.products || [])
