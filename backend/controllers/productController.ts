@@ -213,7 +213,6 @@ export const updateProduct = async (req: express.Request, res: express.Response)
 };
 
 
-
 export const searchProduct = async (
   req: express.Request,
   res: express.Response
@@ -221,22 +220,28 @@ export const searchProduct = async (
   try {
     const { search } = req.query;
 
-    if (!search) {
+    if (!search || typeof search !== "string") {
       res.status(400).send({ message: "Search query is required." });
       return;
     }
 
-    const searchTerm = new RegExp(search as string, "i");
+    // Split search terms by space
+    const searchWords = search.trim().split(/\s+/);
+
+    // Create case-insensitive regex for each word
+    const regexConditions = searchWords.map(word => ({
+      productName: { $regex: new RegExp(word, "i") }
+    }));
 
     const foundProducts = await Product.find({
-      productName: { $regex: searchTerm },
-      status: "Y" 
+      $and: regexConditions,
+      status: "Y"
     });
 
     if (foundProducts.length > 0) {
       res.status(200).send(foundProducts);
     } else {
-      res.status(404).send();
+      res.status(404).send([]);
     }
   } catch (error: any) {
     console.error("Error fetching data:", error);
@@ -246,7 +251,6 @@ export const searchProduct = async (
     });
   }
 };
-
 
 
 // export const getUploadedFile = async (req: express.Request, res: express.Response): Promise<void> => {
