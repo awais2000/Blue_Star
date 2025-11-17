@@ -225,18 +225,45 @@ export const searchProduct = async (
       return;
     }
 
-    // Split search terms by space
+    // --- 1. Prepare search words ---
     const searchWords = search.trim().split(/\s+/);
 
-    // Create case-insensitive regex for each word
     const regexConditions = searchWords.map(word => ({
       productName: { $regex: new RegExp(word, "i") }
     }));
 
-    const foundProducts = await Product.find({
-      $and: regexConditions,
-      status: "Y"
-    });
+    // --- 2. Prepare concatenated search string (remove all spaces) ---
+    const concatSearch = search.replace(/\s+/g, "");
+
+    // --- 3. Query using an OR: 
+    //     A) All words must appear (unordered)
+    //     B) OR concatenated version must match
+    const foundProducts = await Product.aggregate([
+      {
+        $addFields: {
+          concatName: {
+            $replaceAll: {
+              input: { $toLower: "$productName" },
+              find: " ",
+              replacement: ""
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          status: "Y",
+          $or: [
+            {
+              $and: regexConditions
+            },
+            {
+              concatName: { $regex: new RegExp(concatSearch.toLowerCase(), "i") }
+            }
+          ]
+        }
+      }
+    ]);
 
     if (foundProducts.length > 0) {
       res.status(200).send(foundProducts);
