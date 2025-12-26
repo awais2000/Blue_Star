@@ -9,7 +9,7 @@ import { authenticateToken } from "../middlewares/authMiddleware"
 import { addProduct, deleteProducts, getProductById, getProducts, searchProduct, updateProduct } from "../controllers/productController";
 import {upload} from "../middlewares/uploadMiddleware";
 import { addCustomer, deleteCustomer, getCustomer, getCustomerById, updateCustomer } from "../controllers/customerController";
-import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails, getProductInCart, getSalesData, getSalesDataById, printSalesData, searchSalesData, } from "../controllers/salesController";
+import { addProductToCart, createSaleData, deleteFromCart, deleteFromSaleDetails, getProductInCart, getSalesData, getSalesDataById, getSalesSummary, printSalesData, searchSalesData, } from "../controllers/salesController";
 import { deleteRequest, resetCartData } from "../controllers/deleteController";
 import { addPrintConfig, getPrintConfig, } from "../controllers/receiptController";
 import { fcreateSaleData, fgetSalesData, fgetSalesDataById, fprintSalesData } from "../controllers/testSalesController";
@@ -85,6 +85,8 @@ export default (app: Application): void => {
     app.get('/getReceivableDataById/:id', getReceivableDataById);
 
     app.put('/updateReceivable/:id', updateReceivable);
+
+    app.get('/getSalesSummary', getSalesSummary);
 
     //for testing data:
     app.post('/fcreateSaleData', fcreateSaleData);

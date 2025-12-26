@@ -3222,3 +3222,77 @@ export const deleteFromSaleDetails = async (req: express.Request, res: express.R
     handleError(res, error);
   }
 };
+
+
+
+export const getSalesSummary = async (
+  req: express.Request,
+  res: express.Response
+): Promise<void> => {
+  try {
+    const fromDateStr = req.query.fromDate as string | undefined;
+    const toDateStr = req.query.toDate as string | undefined;
+
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+
+    if (fromDateStr) {
+      fromDate = new Date(fromDateStr);
+      fromDate.setHours(0, 0, 0, 0); // start of day
+    }
+
+    if (toDateStr) {
+      toDate = new Date(toDateStr);
+      toDate.setHours(23, 59, 59, 999); // end of day
+    }
+
+    const matchStage: any = {};
+
+    if (fromDate && toDate) {
+      matchStage.date = { $gte: fromDate, $lte: toDate };
+    } else if (fromDate) {
+      matchStage.date = { $gte: fromDate };
+    } else if (toDate) {
+      matchStage.date = { $lte: toDate };
+    }
+
+    const result = await SalesDetail.aggregate([
+      { $match: matchStage },
+
+      // 1️⃣ Sum only grandTotal
+      {
+        $group: {
+          _id: null,
+          grandTotal: { $sum: "$grandTotal" }
+        }
+      },
+
+      // 2️⃣ Calculate VAT (5%) and total
+      {
+        $project: {
+          _id: 0,
+          grandTotal: 1,
+          totalVAT: { $multiply: ["$grandTotal", 0.05] },
+          total: {
+            $subtract: [
+              "$grandTotal",
+              { $multiply: ["$grandTotal", 0.05] }
+            ]
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json(
+      result[0] || {
+        total: 0,
+        totalVAT: 0,
+        grandTotal: 0
+      }
+    );
+
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
