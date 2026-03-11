@@ -215,29 +215,24 @@ export const updateProduct = async (req: express.Request, res: express.Response)
 
 export const searchProduct = async (
   req: express.Request,
-  res: express.Response
+  res: express.Response,
 ): Promise<void> => {
   try {
     const { search } = req.query;
-
+ 
     if (!search || typeof search !== "string") {
       res.status(400).send({ message: "Search query is required." });
       return;
     }
-
-    // --- 1. Prepare search words ---
+ 
     const searchWords = search.trim().split(/\s+/);
-
-    const regexConditions = searchWords.map(word => ({
-      productName: { $regex: new RegExp(word, "i") }
+ 
+    const regexConditions = searchWords.map((word) => ({
+      productName: { $regex: new RegExp(word, "i") },
     }));
-
-    // --- 2. Prepare concatenated search string (remove all spaces) ---
+ 
     const concatSearch = search.replace(/\s+/g, "");
-
-    // --- 3. Query using an OR: 
-    //     A) All words must appear (unordered)
-    //     B) OR concatenated version must match
+ 
     const foundProducts = await Product.aggregate([
       {
         $addFields: {
@@ -245,28 +240,70 @@ export const searchProduct = async (
             $replaceAll: {
               input: { $toLower: "$productName" },
               find: " ",
-              replacement: ""
-            }
-          }
-        }
+              replacement: "",
+            },
+          },
+        },
       },
       {
         $match: {
           status: "Y",
           $or: [
             {
-              $and: regexConditions
+              $and: regexConditions,
             },
             {
-              concatName: { $regex: new RegExp(concatSearch.toLowerCase(), "i") }
-            }
-          ]
-        }
-      }
+              concatName: {
+                $regex: new RegExp(concatSearch.toLowerCase(), "i"),
+              },
+            },
+          ],
+        },
+      },
     ]);
-
-    if (foundProducts.length > 0) {
-      res.status(200).send(foundProducts);
+ 
+    // ✅ Same image processing like getProducts
+    const processedProducts = foundProducts.map((product) => {
+      let imageUrl: string | null = null;
+ 
+      try {
+        let publicId: string | null = null;
+ 
+        if (Array.isArray(product.image)) {
+          publicId = product.image[0];
+        } else if (typeof product.image === "string") {
+          if (product.image.startsWith("[")) {
+            const parsed = JSON.parse(product.image);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              publicId = parsed[0];
+            }
+          } else {
+            publicId = product.image;
+          }
+        }
+ 
+        if (publicId) {
+          imageUrl = getPhotoUrl(publicId, {
+            width: 300,
+            crop: "fit",
+            quality: "auto",
+          });
+        }
+      } catch (err: any) {
+        console.warn(
+          `Error processing product image ${product._id}:`,
+          err.message,
+        );
+      }
+ 
+      return {
+        ...product,
+        image: imageUrl,
+      };
+    });
+ 
+    if (processedProducts.length > 0) {
+      res.status(200).send(processedProducts);
     } else {
       res.status(404).send([]);
     }
@@ -274,7 +311,7 @@ export const searchProduct = async (
     console.error("Error fetching data:", error);
     res.status(500).send({
       message: "Internal Server Error!",
-      error: error.message
+      error: error.message,
     });
   }
 };
