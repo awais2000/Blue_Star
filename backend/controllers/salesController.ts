@@ -398,82 +398,174 @@ let invoiceNoNew;
 
 export const createSaleData = async (
   req: express.Request,
-  res: express.Response
+  res: express.Response,
 ): Promise<void> => {
   try {
-    const { customerName, customerContact, customerTRN, grandTotal, date } = req.body;
+    const {
+      customerName,
+      customerContact,
+      customerTRN,
+      grandTotal,
+      date,
+    } = req.body;
+
+    // =========================================
+    // GET TEMP PRODUCTS
+    // =========================================
 
     const tempProducts = await TempProducts.find()
       .populate("productId")
       .lean();
 
-      const vatstatus = tempProducts.length > 0 ? tempProducts[0].VATstatus : undefined;
+    console.log("Temp Products in createSaleData:", tempProducts);
 
-      console.log(vatstatus);
+    // =========================================
+    // CHECK EMPTY CART
+    // =========================================
 
     if (!tempProducts || tempProducts.length === 0) {
-      res.status(400).json({ message: "Cart is empty. Add products first." });
+      res.status(400).json({
+        success: false,
+        message: "Cart is empty. Add products first.",
+      });
+
       return;
     }
 
-    const productsArray = tempProducts.map((item) => {
-      const { productId: products } = item;
+    // =========================================
+    // PRODUCTS ARRAY
+    // =========================================
+
+    const productsArray = tempProducts.map((item: any) => {
+      const product = item.productId;
+
       const rate = Number(item.unitPrice || 0);
+
       const qty = Number(item.QTY || 0);
+
       const discount = Number(item.discount || 0);
 
       const VAT = (rate * qty * 5) / 100;
+
       const total = rate * qty - discount;
+
       const netTotal = total + VAT;
 
+      console.log(rate, qty, discount, total);
+
       return {
-        productId: products?._id,
-        productName: typeof products === "object" && "productName" in products ? (products as any).productName : "Unknown Product",
+        // Existing Product
+        productId: product?._id || null,
+
+        // Manual Product
+        customProductName: !product?._id
+          ? item.customProductName || null
+          : null,
+
+        // Product Name FIXED
+        productName:
+          product?.productName ||
+          item.customProductName ||
+          "Unknown Product",
+
+        // Warranty
+        productWarranty: item.productWarranty || "",
+
         qty,
+
         rate,
+
         discount,
+
         VAT,
+
         total,
+
         netTotal,
       };
     });
 
-    let invoice = await Invoice.findOne();
-    let currentInvoiceNo: number;
+    // =========================================
+    // GET VAT STATUS
+    // =========================================
 
-    if (invoice) {
-      currentInvoiceNo = invoice.invoiceNo + 1;
-      invoice.invoiceNo = currentInvoiceNo;
-      await invoice.save();
-    } else {
-      currentInvoiceNo = 1;
-      invoice = await Invoice.create({ invoiceNo: currentInvoiceNo });
-    }
+    const vatstatus =
+      tempProducts.length > 0
+        ? tempProducts[0]?.VATstatus
+        : undefined;
+
+    console.log("VAT STATUS:", vatstatus);
+
+    // =========================================
+    // INVOICE INCREMENT
+    // =========================================
+
+    const invoice = await Invoice.findOneAndUpdate(
+      {},
+      {
+        $inc: {
+          invoiceNo: 1,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      },
+    );
+
+    const currentInvoiceNo = invoice.invoiceNo;
+
+    // =========================================
+    // CREATE SALE
+    // =========================================
 
     const newSale = await SalesDetail.create({
       customerName,
+
       customerContact,
+
       customerTRN,
+
       products: productsArray,
+
       grandTotal,
+
       invoiceNo: currentInvoiceNo,
+
       invoice: `${currentInvoiceNo}`,
-      date: date,
+
+      date,
+
       vatStatus: vatstatus,
     });
 
+    console.log("New Sale Created:", newSale);
+
     invoiceNoNew = currentInvoiceNo;
+
+    // =========================================
+    // OPTIONAL: CLEAR TEMP CART
+    // =========================================
+
+    // await TempProducts.deleteMany({});
+
+    // =========================================
+    // RESPONSE
+    // =========================================
 
     res.status(201).json({
       success: true,
+
       message: "Sale created successfully",
-      ...newSale.toObject(),
+
+      data: newSale,
     });
   } catch (error) {
+    console.log("CREATE SALE ERROR:", error);
+
     handleError(res, error);
   }
 };
-
 
 // export const printSalesData = async (
 //   req: express.Request,
