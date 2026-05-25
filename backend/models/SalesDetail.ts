@@ -27,36 +27,124 @@ export interface ISalesDetail extends Document {
 
 const SalesDetailSchema: Schema<ISalesDetail> = new Schema(
   {
-    customerName: { type: String, required: true, trim: true },
-    customerContact: { type: String, required: true, trim: true },
-    customerTRN: {type: String},
+    customerName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    customerContact: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    customerTRN: {
+      type: String,
+    },
+
     products: [
       {
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
-        productName: { type: String, required: true },
-        qty: { type: Number, required: true },
-        rate: { type: Number, required: true },
-        discount: { type: Number, default: 0 },
-        VAT: { type: Number, required: true },
-        total: { type: Number, required: true },
-        netTotal: { type: Number, required: true },
+        // Existing Product
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Products",
+          required: false, // FIXED
+          default: null,
+        },
+
+        // Manual Product Name
+        customProductName: {
+          type: String,
+          default: null,
+        },
+
+        // Product Name
+        productName: {
+          type: String,
+          required: true,
+        },
+
+        // Warranty
+        productWarranty: {
+          type: String,
+          default: "",
+        },
+
+        qty: {
+          type: Number,
+          required: true,
+        },
+
+        rate: {
+          type: Number,
+          required: true,
+        },
+
+        discount: {
+          type: Number,
+          default: 0,
+        },
+
+        VAT: {
+          type: Number,
+          required: true,
+        },
+
+        total: {
+          type: Number,
+          required: true,
+        },
+
+        netTotal: {
+          type: Number,
+          required: true,
+        },
       },
     ],
-    grandTotal: { type: Number, required: true },
-    invoiceNo: { type: Number, required: true, unique: true },
-    invoice: {type: String, required: true, trim: true },
-    date: { type: Date, default: Date.now },
-    vatStatus: { type: String },
+
+    grandTotal: {
+      type: Number,
+      required: true,
+    },
+
+    invoiceNo: {
+      type: Number,
+      required: true,
+      unique: true,
+    },
+
+    invoice: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+
+    vatStatus: {
+      type: String,
+    },
+
     status: {
       type: String,
       enum: ["Y", "N"],
       default: "Y",
     },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { versionKey: false }
-);
 
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+
+  {
+    versionKey: false,
+  }
+);
 
 
 const SalesDetail: Model<ISalesDetail> = mongoose.model<ISalesDetail>("SalesDetail", SalesDetailSchema);
