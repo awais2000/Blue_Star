@@ -121,240 +121,138 @@ export const addProductToCart = async (
 };
 
 
-// export const getProductInCart = async (req: express.Request, res: express.Response): Promise<void> => {
-//     try {
-//         const cartItems = await (TempProducts as any).find()
-//             .populate("productId")
-//             .lean();
-
-//         if (!cartItems || cartItems.length === 0) {
-//             res.status(404).json({ items: [], grandTotal: 0 }); // Better 404 response
-//             return;
-//         }
-
-//         const allItems: any[] = [];
-
-//         let anotherDiscount = 0;
-
-//         cartItems.forEach(item => {
-//             const { productId: product, ...rest } = item;
-
-//             const rate = Number(rest.unitPrice || 0);
-//             const qty = Number(rest.QTY || 0);
-//             const discount = Number(rest.discount || 0);
-//             const selectVAT = rest.VATstatus === "withVAT"; 
-
-//             const baseTotalExclDisc = rate * qty;
-//             const VATtax = roundToTwoDecimals((baseTotalExclDisc * 5) / 100);
-
-//             let total: number;        
-//             let netTotal: number;     // Item Net Total (Final Price)
-//             let finalDiscount: number; // Discount value to return
-
-//             //withoutVAT
-//             if (selectVAT) {
-                
-//                 total = roundToTwoDecimals(baseTotalExclDisc - discount);
-                
-//                 netTotal = roundToTwoDecimals(total + VATtax);
-                
-//                 finalDiscount = discount; // Return original discount amount
-//             } else {
-//                 // withVAT
-//                 finalDiscount = roundToTwoDecimals(discount + VATtax); 
-
-//                 total = roundToTwoDecimals(baseTotalExclDisc - discount) - VATtax; 
-//                 anotherDiscount = discount;
-
-//                 netTotal = roundToTwoDecimals(baseTotalExclDisc); 
-//             }
-
-//             allItems.push({
-//                 productId: (product as any)?._id,
-//                 productName: (product as any)?.productName,
-//                 qty,
-//                 rate: roundToTwoDecimals(rate),
-//                 discount: finalDiscount, 
-//                 VAT: VATtax,
-//                 total,
-//                 netTotal,
-//             });
-//         });
-
-//         const newgrandTotal = roundToTwoDecimals(
-//             allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0)
-//         );
-
-//         const grandTotal = newgrandTotal - anotherDiscount;
-
-//         console.log("anotherDiscount", anotherDiscount);
-
-//         res.status(200).json({
-//             items: allItems,
-//             grandTotal,
-//         });
-//     } catch (error) {
-//         (handleError as any)(res, error);
-//     }
-// };
-
-
 
 export const getProductInCart = async (
   req: express.Request,
-  res: express.Response
+  res: express.Response,
 ): Promise<void> => {
   try {
-      const cartItems = await (TempProducts as any)
-          .find()
-          .populate("productId")
-          .lean();
-
-      if (!cartItems || cartItems.length === 0) {
-          res.status(404).json({
-              items: [],
-              grandTotal: 0,
-          });
-          return;
+    const cartItems = await (TempProducts as any)
+      .find()
+      .populate("productId")
+      .lean();
+ 
+    if (!cartItems || cartItems.length === 0) {
+      res.status(404).json({
+        items: [],
+        grandTotal: 0,
+      });
+ 
+      return;
+    }
+ 
+    const allItems: any[] = [];
+ 
+    let anotherDiscount = 0;
+ 
+    cartItems.forEach((item: any) => {
+      const { productId: product, ...rest } = item;
+ 
+      const customName = item.customProductName;
+ 
+      let rate = Number(rest.unitPrice || 0);
+ 
+      const qty = Number(rest.QTY || 0);
+ 
+      const discount = Number(rest.discount || 0);
+ 
+      const selectVAT = rest.VATstatus === "withVAT";
+ 
+      const baseTotalExclDisc = rate * qty;
+ 
+      // Original VAT
+      const VATtax = roundToTwoDecimals((baseTotalExclDisc * 5) / 100);
+ 
+      let total: number;
+ 
+      let netTotal: number;
+ 
+      let finalDiscount: number;
+ 
+      let displayVAT = VATtax;
+ 
+      // =====================================
+      // WITH VAT
+      // =====================================
+ 
+      if (selectVAT) {
+        total = roundToTwoDecimals(baseTotalExclDisc - discount);
+ 
+        finalDiscount = discount;
+ 
+        displayVAT = VATtax;
+ 
+        // Discount ke baad VAT add hoga
+        netTotal = roundToTwoDecimals(total + VATtax);
       }
-
-      const allItems: any[] = [];
-
-      let anotherDiscount = 0;
-
-      cartItems.forEach((item: any) => {
-          const { productId: product, ...rest } = item;
-
-          // ✅ manual product name
-          const customName = item.customProductName;
-
-          let rate = Number(rest.unitPrice || 0);
-
-          const qty = Number(rest.QTY || 0);
-
-          const discount = Number(rest.discount || 0);
-
-          const selectVAT = rest.VATstatus === "withVAT";
-
-          const baseTotalExclDisc = rate * qty;
-
-          const VATtax = roundToTwoDecimals(
-              (baseTotalExclDisc * 5) / 100
-          );
-
-          let total: number;
-
-          let netTotal: number;
-
-          let finalDiscount: number;
-
-          // =====================================
-          // WITH VAT
-          // =====================================
-
-          if (selectVAT) {
-
-              total = roundToTwoDecimals(
-                  baseTotalExclDisc - discount
-              );
-
-              netTotal = roundToTwoDecimals(
-                  total + VATtax
-              );
-
-              finalDiscount = discount;
-
-          } 
-          
-          // =====================================
-          // WITHOUT VAT
-          // =====================================
-
-          else {
-
-              let withRate = Number(rest.unitPrice || 0);
-
-              withRate -= VATtax / qty;
-
-              rate = withRate;
-
-              const baseTotalExclDisc2 = withRate * qty;
-
-              finalDiscount = roundToTwoDecimals(discount);
-
-              total = roundToTwoDecimals(
-                  baseTotalExclDisc2 - discount
-              );
-
-              anotherDiscount += discount;
-
-              netTotal = roundToTwoDecimals(
-                  baseTotalExclDisc
-              );
-          }
-
-          allItems.push({
-
-              // ✅ if no productId then return temp _id
-              productId:
-                  (product as any)?._id ||
-                  item._id?.toString(),
-
-              // ✅ DB product + manual product support
-              productName:
-                  (product as any)?.productName ||
-                  customName ||
-                  "Unknown Product",
-
-              // ✅ identify manual product
-              isManual: !(product as any)?._id,
-
-              qty,
-
-              rate: roundToTwoDecimals(rate),
-
-              discount: finalDiscount,
-
-              VAT: VATtax,
-
-              total,
-
-              netTotal,
-          });
+ 
+      // =====================================
+      // WITHOUT VAT
+      // =====================================
+      else {
+        let withRate = Number(rest.unitPrice || 0);
+ 
+        // 100 → 95
+        withRate -= VATtax / qty;
+ 
+        rate = roundToTwoDecimals(withRate);
+ 
+        const baseTotalExclDisc2 = rate * qty;
+ 
+        // 95 ka dobara 5%
+        const secondVAT = roundToTwoDecimals((baseTotalExclDisc2 * 5) / 100);
+ 
+        displayVAT = secondVAT;
+ 
+        finalDiscount = roundToTwoDecimals(discount);
+ 
+        // 95 - 20 = 75
+        total = roundToTwoDecimals(baseTotalExclDisc2 - discount);
+ 
+        anotherDiscount += discount;
+ 
+        // 75 + 4.75 = 79.75
+        netTotal = roundToTwoDecimals(total + secondVAT);
+      }
+ 
+      allItems.push({
+        productId: (product as any)?._id || item._id?.toString(),
+ 
+        productName:
+          (product as any)?.productName || customName || "Unknown Product",
+ 
+        isManual: !(product as any)?._id,
+ 
+        qty,
+ 
+        rate: roundToTwoDecimals(rate),
+ 
+        discount: finalDiscount,
+ 
+        total,
+ 
+        VAT: displayVAT,
+ 
+        netTotal,
       });
-
-      // =====================================
-      // GRAND TOTAL
-      // =====================================
-
-      const newgrandTotal = roundToTwoDecimals(
-          allItems.reduce(
-              (acc, item) => acc + (item.netTotal || 0),
-              0
-          )
-      );
-
-      const grandTotal = roundToTwoDecimals(
-          newgrandTotal - anotherDiscount
-      );
-
-      console.log("anotherDiscount", anotherDiscount);
-
-      // =====================================
-      // RESPONSE
-      // =====================================
-
-      res.status(200).json({
-          items: allItems,
-          grandTotal,
-      });
-
+    });
+ 
+    // =====================================
+    // GRAND TOTAL
+    // =====================================
+ 
+    const grandTotal = roundToTwoDecimals(
+      allItems.reduce((acc, item) => acc + (item.netTotal || 0), 0),
+    );
+ 
+    res.status(200).json({
+      items: allItems,
+      grandTotal,
+    });
   } catch (error) {
-
-      (handleError as any)(res, error);
+    (handleError as any)(res, error);
   }
 };
-
 
 
 export const deleteFromCart = async (
@@ -567,1705 +465,597 @@ export const createSaleData = async (
   }
 };
 
-// export const printSalesData = async (
-//   req: express.Request,
-//   res: express.Response
-// ): Promise<void> => {
-//   try {
-//      let invoiceNo = invoiceNoNew;
-//      console.log(invoiceNo);
-
-//     if (!invoiceNo) {
-//       res.status(400).send({ message: "Please provide the Invoice Number!" });
-//       return;
-//     }
-
-//     const latestConfig = await (PrinterConfigurationModel as any).findOne({})
-//       .sort({ createdAt: -1 })
-//       .lean();
-
-//     const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
-
-//     if (!latestConfig?.printType) {
-//       res.status(404).json({ message: "Print Type not found!" });
-//       return;
-//     }
-
-//     const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
-//       .populate("products.productId")
-//       .lean();
-
-//     if (!getSalesData) {
-//       res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
-//       return;
-//     }
-
-//     const customerName = getSalesData.customerName || "";
-//     const customerContact = getSalesData.customerContact || "";
-//     const customerTRN = getSalesData.customerTRN || "Nil";
-//     const date = new Date(getSalesData.date).toLocaleDateString();
-//     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
-//     const realtime = getSalesData.createdAt || 0;
-//     const theTime = formatDateTime(realtime);
-//     console.log(theTime);
-
-//     let itemRows = "";
-//     let sumOfTotal = 0; // Summary Total (Base Price * Qty)
-//     let sumOfVat = 0;   // Summary VAT (Total VAT amount)
-//     let newDiscount = 0; // Discount amount for the 'Disc' summary line
-//     let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
-
-//     // Calculate unformatted sums needed for final totals
-//     sumOfTotal = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
-//       0
-//     );
-
-//     sumOfVat = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + Number(item.VAT || 0),
-//       0
-//     );
-    
-//     totalDiscountSum = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + Number(item.discount || 0),
-//       0
-//     );
-
-
-//     // --- Conditional Item Row Mapping ---
-//     if (getvatstatus?.VATstatus === "withoutVAT") {
-//       itemRows = (getSalesData.products || [])
-//         .map((item: any) => {
-//           const itemRate = formatCurrency(item.rate);
-//           const vatAmount = formatCurrency(item.VAT);
-
-//           // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
-//           const itemBasePrice = Number(item.rate) * Number(item.qty);
-//           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-//           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-          
-//           return `
-//             <tr>
-//               <td>${item.productName}</td>
-//               <td style="text-align:right;">${item.qty}</td>
-//               <td style="text-align:right;">${itemRate}</td>
-//               <td style="text-align:right;">${vatAmount}</td>
-//               <td style="text-align:right;">${itemNetTotal}</td>
-//             </tr>
-//           `;
-//         })
-//         .join("");
-
-//       // Display Discount: Use the simple total discount sum
-//       newDiscount = totalDiscountSum + sumOfVat; 
-      
-//     } else { // WITH VAT (Standard Scenario from Image)
-//       itemRows = (getSalesData.products || [])
-//         .map((item: any) => {
-//           const itemRate = formatCurrency(item.rate);
-//           const vatAmount = formatCurrency(item.VAT);
-          
-//           // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
-//           const itemBasePrice = Number(item.rate) * Number(item.qty);
-//           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-//           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-          
-//           return `
-//             <tr>
-//               <td>${item.productName}</td>
-//               <td style="text-align:right;">${item.qty}</td>
-//               <td style="text-align:right;">${itemRate}</td>
-//               <td style="text-align:right;">${vatAmount}</td>
-//               <td style="text-align:right;">${itemNetTotal}</td>
-//             </tr>
-//           `;
-//         })
-//         .join("");
-
-//       // Display Discount: Use the simple total discount
-//       newDiscount = totalDiscountSum; 
-//     }
-
-//     // --- Final Grand Total Calculation ---
-//     // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
-//     const calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(newDiscount);
-    
-//     // --- Final Formatting of Totals for HTML Injection ---
-//     // These variables will be injected into the HTML templates
-//     const finalGrandTotal = formatCurrency(calculatedGrandTotal);
-//     const formattedSumOfTotal = formatCurrency(sumOfTotal);
-//     const formattedSumOfVat = formatCurrency(sumOfVat);
-//     const formattedNewDiscount = formatCurrency(newDiscount);
-
-
-//     let invoiceHtml = "";
-
-//     if (latestConfig.printType === "thermal") {
-//       invoiceHtml = 
-//       `<!DOCTYPE html>
-//       <html lang="en">
-//         <head>
-//           <meta charset="UTF-8" />
-//           <title>Thermal Invoice</title>
-//           <style>
-//             body {
-//               font-family: "Segoe UI", Arial, sans-serif;
-//               margin: 0;
-//               padding: 0;
-//               background: #fff;
-//               color: #000;
-//             }
-      
-//             .thermal {
-//               width: 65mm;
-//               min-height: 110mm;
-//               font-size: 12px;
-//               padding: 8px;
-//               margin: auto;
-//               box-sizing: border-box;
-//             }
-      
-//             /* Header */
-//             .header {
-//               text-align: center;
-//               border-bottom: 1px dashed #000;
-//               padding-bottom: 8px;
-//               margin-bottom: 6px;
-//             }
-      
-//             .header img {
-//               max-width: 45px;
-//               margin: 0 auto 5px;
-//               display: block;
-//             }
-      
-//             .header h3 {
-//               font-size: 15px;
-//               margin: 2px 0;
-//               text-transform: uppercase;
-//               letter-spacing: 1px;
-//             }
-      
-//             .header p {
-//               font-size: 11px;
-//               margin: 2px 0;
-//               line-height: 1.3;
-//             }
-      
-//             /* Info */
-//             .info {
-//               margin-bottom: 6px;
-//             }
-      
-//             .info td {
-//               font-size: 11px;
-//               padding: 2px 0;
-//             }
-      
-//             /* Items Table */
-//             .items {
-//               width: 100%;
-//               font-size: 11px;
-//               border-collapse: collapse;
-//               margin-top: 6px;
-//             }
-      
-//             .items thead {
-//               border-bottom: 1px dashed #000;
-//             }
-      
-//             .items th {
-//               font-weight: bold;
-//               padding: 3px 4px; /* left-right spacing add kiya */
-//               white-space: nowrap; /* text break nahi hoga */
-//             }
-      
-//             .items td {
-//               padding: 3px 4px;
-//               vertical-align: top;
-//             }
-      
-//             .items th:nth-child(1),
-//             .items td:nth-child(1) {
-//               text-align: left;
-//             }
-      
-//             .items th:nth-child(2),
-//             .items td:nth-child(2),
-//             .items th:nth-child(3),
-//             .items td:nth-child(3),
-//             .items th:nth-child(4),
-//             .items td:nth-child(4),
-//             .items th:nth-child(5),
-//             .items td:nth-child(5) {
-//               text-align: right;
-//             }
-      
-//             /* Totals */
-//             .totals {
-//               width: 100%;
-//               font-size: 12px;
-//               margin-top: 8px;
-//               border-top: 1px dashed #000;
-//               padding-top: 4px;
-//             }
-      
-//             .totals td {
-//               padding: 3px 0;
-//             }
-      
-//             .totals td:first-child {
-//               font-weight: bold;
-//             }
-      
-//             .totals td:last-child {
-//               text-align: right;
-//               font-weight: bold;
-//             }
-      
-//             /* Footer */
-//             .footer {
-//               text-align: center;
-//               margin-top: 12px;
-//               font-size: 10px;
-//               border-top: 1px dashed #000;
-//               padding-top: 6px;
-//               line-height: 1.4;
-//             }
-      
-//             .footer strong {
-//               display: block;
-//               margin-bottom: 2px;
-//             }
-      
-//             .footer p {
-//               margin: 0;
-//             }
-      
-//             /* Print */
-//             @media print {
-//               @page {
-//                 size: 80mm auto;
-//                 margin: 0;
-//               body {
-//                 background: #fff;
-//                 margin: 0;
-//                 padding: 0;
-//               }
-//               .thermal {
-//                 box-shadow: none;
-//                 border: none;
-//                 margin: 0;
-//               }
-//             }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="thermal">
-//             <!-- Header -->
-//             <div class="header">
-//               <h3>${businessConfig.rcpt_name}</h3>
-//               <p>${businessConfig.rcpt_address}</p>
-//               <p><strong> </strong> ${businessConfig.contactString}</p>
-//               <p><strong>TAX INVOICE</strong></p>
-//               <p><strong>TRN: </strong>104155043300003</p>
-//             </div>
-      
-//             <!-- Info -->
-//             <table class="info">
-//               <tr>
-//                 <td><strong>Invoice#</strong></td>
-//                 <td>${invoiceNo}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Date</strong></td>
-//                 <td>${date}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Customer</strong></td>
-//                 <td>${customerName}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Contact#</strong></td>
-//                 <td>${customerContact}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Customer TRN#</strong></td>
-//                 <td>${customerTRN}</td>
-//               </tr>
-//             </table>
-      
-//             <!-- Items -->
-//             <table class="items">
-//               <thead>
-//                 <tr>
-//                   <th style="width:35%;">Item</th>
-//                   <th style="width:15%;">Qty</th>
-//                   <th style="width:20%;">Price</th>
-//                   <th style="width:15%;">VAT 5%</th>
-//                   <th style="width:25%;">Total</th>
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 ${itemRows}
-//               </tbody>
-//             </table>
-
-//             <!-- Totals -->
-//             <table class="totals">
-//               <tr>
-//                 <td>Total</td>
-//                 <td>${formattedSumOfTotal} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Total VAT</td>
-//                 <td>${formattedSumOfVat} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Disc</td>
-//                 <td>${formattedNewDiscount} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Grand Total</td>
-//                 <td>${finalGrandTotal} AED</td>
-//               </tr>
-//             </table>
-//           </div>
-//         </body>
-//       </html>`;
-//      }
-//     else if (latestConfig.printType === "A4") {
-//         // ... (A4 HTML template here)
-//         invoiceHtml = `
-//         <!DOCTYPE html>
-//             <html lang="en">
-//             <head>
-//               <meta charset="UTF-8" />
-//               <title>A4 Invoice</title>
-//               <style>
-//                 body {
-//                   font-family: "Segoe UI", Arial, sans-serif;
-//                   background: #f5f7fa;
-//                   padding: 20px;
-//                   color: #333;
-//                 }
-//                 .a4 {
-//                   width: 210mm;
-//                   min-height: 297mm;
-//                   margin: auto;
-//                   background: #fff;
-//                   padding: 30px 35px;
-//                   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-//                   border-radius: 8px;
-//                 }
-//                 .invoice-header {
-//                   text-align: center;
-//                   border-bottom: 3px solid #007bff;
-//                   padding-bottom: 15px;
-//                   margin-bottom: 25px;
-//                 }
-//                 .invoice-header img {
-//                   width: 100px;
-//                   height: auto;
-//                   margin-bottom: 10px;
-//                 }
-//                 .invoice-header h1 {
-//                   font-size: 28px;
-//                   color: #007bff;
-//                   margin-bottom: 8px;
-//                   text-transform: uppercase;
-//                   letter-spacing: 1px;
-//                 }
-//                 .info-section {
-//                   display: flex;
-//                   justify-content: space-between;
-//                   margin-bottom: 25px;
-//                 }
-//                 .info-block {
-//                   font-size: 14px;
-//                   line-height: 1.6;
-//                 }
-//                 .info-block strong {
-//                   display: inline-block;
-//                   min-width: 80px;
-//                   color: #222;
-//                 }
-//                 .items-table {
-//                   width: 100%;
-//                   border-collapse: collapse;
-//                   margin-bottom: 20px;
-//                   font-size: 14px;
-//                 }
-//                 .items-table thead {
-//                   background: #007bff;
-//                   color: #fff;
-//                 }
-//                 .items-table th {
-//                   padding: 14px 12px;
-//                   text-align: left;
-//                 }
-//                 .items-table td {
-//                   border: 1px solid #ddd;
-//                   padding: 12px 10px;
-//                   text-align: left;
-//                 }
-//                 .items-table tr:nth-child(even) {
-//                   background: #f9f9f9;
-//                 }
-//                 .items-table tfoot td {
-//                   font-weight: bold;
-//                   background: #f1f5ff;
-//                   border-top: 2px solid #007bff;
-//                 }
-//                 .items-table tfoot tr td:last-child {
-//                   text-align: right;
-//                   color: #007bff;
-//                 }
-//                 .invoice-footer {
-//                   text-align: center;
-//                   margin-top: 40px;
-//                   font-size: 13px;
-//                   color: #444;
-//                 }
-//                 .invoice-footer strong {
-//                   display: block;
-//                   margin-bottom: 6px;
-//                   color: #000;
-//                 }
-//                 @media print {
-//                     .a4 {
-//                         box-shadow: none;
-//                     }
-//                 }
-//               </style>
-//             </head>
-//             <body>
-//               <div class="a4">
-//                 <div class="invoice-header">
-//                   <h1>${(businessConfig as any).rcpt_name}</h1>
-//                   <p>${(businessConfig as any).rcpt_address}</p>
-//                   <p>${(businessConfig as any).contactString}</p>
-//                   <p><strong>TAX INVOICE</strong></p>
-//                   <p><strong>TRN:</strong>104155043300003</p>
-//                 </div>
-//                 <div class="info-section">
-//                   <div class="info-block">
-//                     <p><strong>Customer</strong> ${customerName}</p>
-//                     <p><strong>Contact#</strong> ${customerContact}</p>
-//                     <p><strong>Customer TRN</strong> ${customerTRN}</p>
-//                   </div>
-//                   <div class="info-block">
-//                     <p><strong>Date</strong>${date}</p>
-//                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
-//                   </div>
-//                 </div>
-//                 <table class="items-table">
-//                   <thead>
-//                     <tr>
-//                       <th style="width:40%;">Product</th>
-//                       <th style="width:15%;">Quantity</th>
-//                       <th style="width:15%;">Price</th>
-//                       <th style="width:15%;">VAT 5%</th>
-//                       <th style="width:15%;">Total</th>
-//                     </tr>
-//                   </thead>
-//                   <tbody>
-//                     ${itemRows}
-//                   </tbody>
-//                     <tr>
-//                       <td colspan="4">Total</td>
-//                       <td>${formattedSumOfTotal} AED</td>
-//                     </tr>
-//                   <tr>
-//                       <td colspan="4">Total VAT</td>
-//                       <td>${formattedSumOfVat} AED</td>
-//                     </tr>
-//                   <tr>
-//                       <td colspan="4">Disc</td>
-//                       <td>${formattedNewDiscount} AED</td>
-//                     </tr>
-//                   <tfoot>
-//                     <tr>
-//                       <td colspan="4">Grand Total</td>
-//                       <td>${finalGrandTotal} AED</td>
-//                     </tr>
-//                   </tfoot>
-//                 </table>
-//                 <div class="invoice-footer">
-//                 </div>
-//               </div>
-//             </body>
-//             </html>
-// `;
-//     }
-
-//     else {
-//       res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
-//       return;
-//     }
-
-//     await TempProducts.deleteMany({});
-
-//     res.status(200).send(invoiceHtml);
-//   } catch (error) {
-//     console.error("Error printing sales data:", error);
-//     res.status(500).send({ message: "An unexpected error occurred." });
-//   }
-// };
-
-// export const printSalesData = async (
-//   req: express.Request,
-//   res: express.Response
-// ): Promise<void> => {
-//   try {
-//      let invoiceNo = invoiceNoNew;
-//      console.log(invoiceNo);
-
-//     if (!invoiceNo) {
-//       res.status(400).send({ message: "Please provide the Invoice Number!" });
-//       return;
-//     }
-
-//     const latestConfig = await (PrinterConfigurationModel as any).findOne({})
-//       .sort({ createdAt: -1 })
-//       .lean();
-
-//     const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
-
-//     if (!latestConfig?.printType) {
-//       res.status(404).json({ message: "Print Type not found!" });
-//       return;
-//     }
-
-//     const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
-//       .populate("products.productId")
-//       .lean();
-
-//     if (!getSalesData) {
-//       res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
-//       return;
-//     }
-
-//     const customerName = getSalesData.customerName || "";
-//     const customerContact = getSalesData.customerContact || "";
-//     const customerTRN = getSalesData.customerTRN || "Nil";
-//     const date = new Date(getSalesData.date).toLocaleDateString();
-//     const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
-//     const realtime = getSalesData.createdAt || 0;
-//     const theTime = formatDateTime(realtime);
-//     console.log(theTime);
-
-//     let itemRows = "";
-//     let sumOfTotal = 0; // Summary Total (Base Price * Qty)
-//     let sumOfVat = 0;   // Summary VAT (Total VAT amount)
-//     let newDiscount = 0; // Discount amount for the 'Disc' summary line
-//     let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
-
-//     // Calculate unformatted sums needed for final totals
-//     sumOfTotal = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
-//       0
-//     );
-
-//     sumOfVat = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + Number(item.VAT || 0),
-//       0
-//     );
-    
-//     totalDiscountSum = (getSalesData.products || []).reduce(
-//       (acc: number, item: any) => acc + Number(item.discount || 0),
-//       0
-//     );
-
-
-//     // --- Conditional Item Row Mapping ---
-//     if (getvatstatus?.VATstatus === "withoutVAT") {
-//       itemRows = (getSalesData.products || [])
-//         .map((item: any) => {
-//           // let  withRate = Number(rest.unitPrice || 0);
-                
-//           //       withRate -= VATtax/qty;  //95
-
-//           //       rate = withRate;  //95
-
-//           //       const baseTotalExclDisc2 = withRate * qty; //95 * 1
-
-//           //       finalDiscount = roundToTwoDecimals(discount);  
-
-//           //       total = roundToTwoDecimals(baseTotalExclDisc2 - discount); 
-
-//           //       anotherDiscount = discount;
-
-//           //       netTotal = roundToTwoDecimals(baseTotalExclDisc); 
-            
-//           let itemRate = formatCurrency(item.rate);
-//           const vatAmount = formatCurrency(item.VAT);
-
-//           // Convert itemRate to number before arithmetic
-//           const numericItemRate = Number(item.rate) - Number(item.VAT)/Number(item.qty);
-//           itemRate = formatCurrency(numericItemRate);
-
-//           // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
-//           const itemBasePrice = Number(itemRate) * Number(item.qty);
-//           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-//           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-
-//           sumOfTotal -= Number(vatAmount);
-
-          
-//           return `
-//             <tr>
-//               <td>${item.productName}</td>
-//               <td style="text-align:right;">${item.qty}</td>
-//               <td style="text-align:right;">${itemRate}</td>
-//               <td style="text-align:right;">${vatAmount}</td>
-//               <td style="text-align:right;">${itemNetTotal}</td>
-//             </tr>
-//           `;
-//         })
-//         .join("");
-
-//       // Display Discount: Use the simple total discount sum
-//       newDiscount = totalDiscountSum; 
-      
-//     } else { // WITH VAT (Standard Scenario from Image)
-//       itemRows = (getSalesData.products || [])
-//         .map((item: any) => {
-          
-//           const itemRate = formatCurrency(item.rate);
-//           const vatAmount = formatCurrency(item.VAT);
-          
-//           // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
-//           const itemBasePrice = Number(item.rate) * Number(item.qty);
-//           const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-//           const itemNetTotal = formatCurrency(itemNetTotalValue); 
-          
-
-//           return `
-//             <tr>
-//               <td>${item.productName}</td>
-//               <td style="text-align:right;">${item.qty}</td>
-//               <td style="text-align:right;">${itemRate}</td>
-//               <td style="text-align:right;">${vatAmount}</td>
-//               <td style="text-align:right;">${itemNetTotal}</td>
-//             </tr>
-//           `;
-//         })
-//         .join("");
-
-//       // Display Discount: Use the simple total discount
-//       newDiscount = totalDiscountSum; 
-//     }
-
-//     // --- Final Grand Total Calculation ---
-//     // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
-//     const calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(newDiscount);
-    
-//     // --- Final Formatting of Totals for HTML Injection ---
-//     // These variables will be injected into the HTML templates
-//     const finalGrandTotal = formatCurrency(calculatedGrandTotal);
-//     const formattedSumOfTotal = formatCurrency(sumOfTotal);
-//     const formattedSumOfVat = formatCurrency(sumOfVat);
-//     const formattedNewDiscount = formatCurrency(newDiscount);
-
-
-//     let invoiceHtml = "";
-
-//     if (latestConfig.printType === "thermal") {
-//       invoiceHtml = 
-//       `<!DOCTYPE html>
-//       <html lang="en">
-//         <head>
-//           <meta charset="UTF-8" />
-//           <title>Thermal Invoice</title>
-//           <style>
-//             body {
-//               font-family: "Segoe UI", Arial, sans-serif;
-//               margin: 0;
-//               padding: 0;
-//               background: #fff;
-//               color: #000;
-//             }
-      
-//             .thermal {
-//               width: 65mm;
-//               min-height: 110mm;
-//               font-size: 12px;
-//               padding: 8px;
-//               margin: auto;
-//               box-sizing: border-box;
-//             }
-      
-//             /* Header */
-//             .header {
-//               text-align: center;
-//               border-bottom: 1px dashed #000;
-//               padding-bottom: 8px;
-//               margin-bottom: 6px;
-//             }
-      
-//             .header img {
-//               max-width: 45px;
-//               margin: 0 auto 5px;
-//               display: block;
-//             }
-      
-//             .header h3 {
-//               font-size: 15px;
-//               margin: 2px 0;
-//               text-transform: uppercase;
-//               letter-spacing: 1px;
-//             }
-      
-//             .header p {
-//               font-size: 11px;
-//               margin: 2px 0;
-//               line-height: 1.3;
-//             }
-      
-//             /* Info */
-//             .info {
-//               margin-bottom: 6px;
-//             }
-      
-//             .info td {
-//               font-size: 11px;
-//               padding: 2px 0;
-//             }
-      
-//             /* Items Table */
-//             .items {
-//               width: 100%;
-//               font-size: 11px;
-//               border-collapse: collapse;
-//               margin-top: 6px;
-//             }
-      
-//             .items thead {
-//               border-bottom: 1px dashed #000;
-//             }
-      
-//             .items th {
-//               font-weight: bold;
-//               padding: 3px 4px; /* left-right spacing add kiya */
-//               white-space: nowrap; /* text break nahi hoga */
-//             }
-      
-//             .items td {
-//               padding: 3px 4px;
-//               vertical-align: top;
-//             }
-      
-//             .items th:nth-child(1),
-//             .items td:nth-child(1) {
-//               text-align: left;
-//             }
-      
-//             .items th:nth-child(2),
-//             .items td:nth-child(2),
-//             .items th:nth-child(3),
-//             .items td:nth-child(3),
-//             .items th:nth-child(4),
-//             .items td:nth-child(4),
-//             .items th:nth-child(5),
-//             .items td:nth-child(5) {
-//               text-align: right;
-//             }
-      
-//             /* Totals */
-//             .totals {
-//               width: 100%;
-//               font-size: 12px;
-//               margin-top: 8px;
-//               border-top: 1px dashed #000;
-//               padding-top: 4px;
-//             }
-      
-//             .totals td {
-//               padding: 3px 0;
-//             }
-      
-//             .totals td:first-child {
-//               font-weight: bold;
-//             }
-      
-//             .totals td:last-child {
-//               text-align: right;
-//               font-weight: bold;
-//             }
-      
-//             /* Footer */
-//             .footer {
-//               text-align: center;
-//               margin-top: 12px;
-//               font-size: 10px;
-//               border-top: 1px dashed #000;
-//               padding-top: 6px;
-//               line-height: 1.4;
-//             }
-      
-//             .footer strong {
-//               display: block;
-//               margin-bottom: 2px;
-//             }
-      
-//             .footer p {
-//               margin: 0;
-//             }
-      
-//             /* Print */
-//             @media print {
-//               @page {
-//                 size: 80mm auto;
-//                 margin: 0;
-//               body {
-//                 background: #fff;
-//                 margin: 0;
-//                 padding: 0;
-//               }
-//               .thermal {
-//                 box-shadow: none;
-//                 border: none;
-//                 margin: 0;
-//               }
-//             }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="thermal">
-//             <!-- Header -->
-//             <div class="header">
-//               <h3>${businessConfig.rcpt_name}</h3>
-//               <p>${businessConfig.rcpt_address}</p>
-//               <p><strong> </strong> ${businessConfig.contactString}</p>
-//               <p><strong>TAX INVOICE</strong></p>
-//               <p><strong>TRN: </strong>104155043300003</p>
-//             </div>
-      
-//             <!-- Info -->
-//             <table class="info">
-//               <tr>
-//                 <td><strong>Invoice#</strong></td>
-//                 <td>${invoiceNo}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Date</strong></td>
-//                 <td>${date}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Customer</strong></td>
-//                 <td>${customerName}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Contact#</strong></td>
-//                 <td>${customerContact}</td>
-//               </tr>
-//               <tr>
-//                 <td><strong>Customer TRN#</strong></td>
-//                 <td>${customerTRN}</td>
-//               </tr>
-//             </table>
-      
-//             <!-- Items -->
-//             <table class="items">
-//               <thead>
-//                 <tr>
-//                   <th style="width:35%;">Item</th>
-//                   <th style="width:15%;">Qty</th>
-//                   <th style="width:20%;">Price</th>
-//                   <th style="width:15%;">VAT 5%</th>
-//                   <th style="width:25%;">Total</th>
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 ${itemRows}
-//               </tbody>
-//             </table>
-
-//             <!-- Totals -->
-//             <table class="totals">
-//               <tr>
-//                 <td>Total</td>
-//                 <td>${formattedSumOfTotal} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Total VAT</td>
-//                 <td>${formattedSumOfVat} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Disc</td>
-//                 <td>${formattedNewDiscount} AED</td>
-//               </tr>
-//               <tr>
-//                 <td>Grand Total</td>
-//                 <td>${finalGrandTotal} AED</td>
-//               </tr>
-//             </table>
-//           </div>
-//         </body>
-//       </html>`;
-//      }
-//     else if (latestConfig.printType === "A4") {
-//         // ... (A4 HTML template here)
-//         invoiceHtml = `
-//         <!DOCTYPE html>
-//             <html lang="en">
-//             <head>
-//               <meta charset="UTF-8" />
-//               <title>A4 Invoice</title>
-//               <style>
-//                 body {
-//                   font-family: "Segoe UI", Arial, sans-serif;
-//                   background: #f5f7fa;
-//                   padding: 20px;
-//                   color: #333;
-//                 }
-//                 .a4 {
-//                   width: 210mm;
-//                   min-height: 297mm;
-//                   margin: auto;
-//                   background: #fff;
-//                   padding: 30px 35px;
-//                   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-//                   border-radius: 8px;
-//                 }
-//                 .invoice-header {
-//                   text-align: center;
-//                   border-bottom: 3px solid #007bff;
-//                   padding-bottom: 15px;
-//                   margin-bottom: 25px;
-//                 }
-//                 .invoice-header img {
-//                   width: 100px;
-//                   height: auto;
-//                   margin-bottom: 10px;
-//                 }
-//                 .invoice-header h1 {
-//                   font-size: 28px;
-//                   color: #007bff;
-//                   margin-bottom: 8px;
-//                   text-transform: uppercase;
-//                   letter-spacing: 1px;
-//                 }
-//                 .info-section {
-//                   display: flex;
-//                   justify-content: space-between;
-//                   margin-bottom: 25px;
-//                 }
-//                 .info-block {
-//                   font-size: 14px;
-//                   line-height: 1.6;
-//                 }
-//                 .info-block strong {
-//                   display: inline-block;
-//                   min-width: 80px;
-//                   color: #222;
-//                 }
-//                 .items-table {
-//                   width: 100%;
-//                   border-collapse: collapse;
-//                   margin-bottom: 20px;
-//                   font-size: 14px;
-//                 }
-//                 .items-table thead {
-//                   background: #007bff;
-//                   color: #fff;
-//                 }
-//                 .items-table th {
-//                   padding: 14px 12px;
-//                   text-align: left;
-//                 }
-//                 .items-table td {
-//                   border: 1px solid #ddd;
-//                   padding: 12px 10px;
-//                   text-align: left;
-//                 }
-//                 .items-table tr:nth-child(even) {
-//                   background: #f9f9f9;
-//                 }
-//                 .items-table tfoot td {
-//                   font-weight: bold;
-//                   background: #f1f5ff;
-//                   border-top: 2px solid #007bff;
-//                 }
-//                 .items-table tfoot tr td:last-child {
-//                   text-align: right;
-//                   color: #007bff;
-//                 }
-//                 .invoice-footer {
-//                   text-align: center;
-//                   margin-top: 40px;
-//                   font-size: 13px;
-//                   color: #444;
-//                 }
-//                 .invoice-footer strong {
-//                   display: block;
-//                   margin-bottom: 6px;
-//                   color: #000;
-//                 }
-//                 @media print {
-//                     .a4 {
-//                         box-shadow: none;
-//                     }
-//                 }
-//               </style>
-//             </head>
-//             <body>
-//               <div class="a4">
-//                 <div class="invoice-header">
-//                   <h1>${(businessConfig as any).rcpt_name}</h1>
-//                   <p>${(businessConfig as any).rcpt_address}</p>
-//                   <p>${(businessConfig as any).contactString}</p>
-//                   <p><strong>TAX INVOICE</strong></p>
-//                   <p><strong>TRN:</strong>104155043300003</p>
-//                 </div>
-//                 <div class="info-section">
-//                   <div class="info-block">
-//                     <p><strong>Customer</strong> ${customerName}</p>
-//                     <p><strong>Contact#</strong> ${customerContact}</p>
-//                     <p><strong>Customer TRN</strong> ${customerTRN}</p>
-//                   </div>
-//                   <div class="info-block">
-//                     <p><strong>Date</strong>${date}</p>
-//                     <p><strong>Invoice#</strong> ${invoiceNo}</p>
-//                   </div>
-//                 </div>
-//                 <table class="items-table">
-//                   <thead>
-//                     <tr>
-//                       <th style="width:40%;">Product</th>
-//                       <th style="width:15%;">Quantity</th>
-//                       <th style="width:15%;">Price</th>
-//                       <th style="width:15%;">VAT 5%</th>
-//                       <th style="width:15%;">Total</th>
-//                     </tr>
-//                   </thead>
-//                   <tbody>
-//                     ${itemRows}
-//                   </tbody>
-//                     <tr>
-//                       <td colspan="4">Total</td>
-//                       <td>${formattedSumOfTotal} AED</td>
-//                     </tr>
-//                   <tr>
-//                       <td colspan="4">Total VAT</td>
-//                       <td>${formattedSumOfVat} AED</td>
-//                     </tr>
-//                   <tr>
-//                       <td colspan="4">Disc</td>
-//                       <td>${formattedNewDiscount} AED</td>
-//                     </tr>
-//                   <tfoot>
-//                     <tr>
-//                       <td colspan="4">Grand Total</td>
-//                       <td>${finalGrandTotal} AED</td>
-//                     </tr>
-//                   </tfoot>
-//                 </table>
-//                 <div class="invoice-footer">
-//                 </div>
-//               </div>
-//             </body>
-//             </html>
-// `;
-//     }
-
-//     else {
-//       res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
-//       return;
-//     }
-
-//     await TempProducts.deleteMany({});
-
-//     res.status(200).send(invoiceHtml);
-//   } catch (error) {
-//     console.error("Error printing sales data:", error);
-//     res.status(500).send({ message: "An unexpected error occurred." });
-//   }
-// };
-
-
 export const printSalesData = async (
-    req: express.Request,
-    res: express.Response
-  ): Promise<void> => {
-    try {
-       let invoiceNo = invoiceNoNew;
-       console.log(invoiceNo);
-  
-      if (!invoiceNo) {
-        res.status(400).send({ message: "Please provide the Invoice Number!" });
-        return;
-      }
-  
-      const latestConfig = await (PrinterConfigurationModel as any).findOne({})
-        .sort({ createdAt: -1 })
-        .lean();
-  
-      const getvatstatus = await (TempProducts as any).findOne({}).sort({ createdAt: -1 }).lean();
-  
-      if (!latestConfig?.printType) {
-        res.status(404).json({ message: "Print Type not found!" });
-        return;
-      }
-  
-      const getSalesData = await (SalesDetail as any).findOne({ invoiceNo: invoiceNo })
-        .populate("products.productId")
-        .lean();
-  
-      if (!getSalesData) {
-        res.status(404).send({ message: `Invoice with number ${invoiceNo} not found!` });
-        return;
-      }
-  
-      const customerName = getSalesData.customerName || "";
-      const customerContact = getSalesData.customerContact || "";
-      const customerTRN = getSalesData.customerTRN || "Nil";
-      const olddate = new Date(getSalesData.date).toLocaleDateString();
-      const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
-      const realtime = getSalesData.createdAt || 0;
-      const theTime = formatDateTime(realtime);
-      console.log(theTime);
-  
-      const date = formatDateToDDMMYYYY(olddate);
-  
-      let itemRows = "";
-      let sumOfTotal = 0; // Summary Total (Base Price * Qty)
-      let sumOfVat = 0;   // Summary VAT (Total VAT amount)
-      let newDiscount = 0; // Discount amount for the 'Disc' summary line
-      let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
-  
-      // Calculate unformatted sums needed for final totals
-      sumOfTotal = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + (Number(item.rate || 0) * Number(item.qty || 0)),
-        0
-      );
-  
-      sumOfVat = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.VAT || 0),
-        0
-      );
+  req: express.Request,
+  res: express.Response,
+): Promise<void> => {
+  try {
+    let invoiceNo = invoiceNoNew;
+    console.log(invoiceNo);
+
+    if (!invoiceNo) {
+      res.status(400).send({ message: "Please provide the Invoice Number!" });
+      return;
+    }
+
+    const latestConfig = await (PrinterConfigurationModel as any)
+      .findOne({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const getvatstatus = await (TempProducts as any)
+      .findOne({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!latestConfig?.printType) {
+      res.status(404).json({ message: "Print Type not found!" });
+      return;
+    }
+
+    const getSalesData = await (SalesDetail as any)
+      .findOne({ invoiceNo: invoiceNo })
+      .populate("products.productId")
+      .lean();
+
+    if (!getSalesData) {
+      res
+        .status(404)
+        .send({ message: `Invoice with number ${invoiceNo} not found!` });
+      return;
+    }
+
+    const customerName = getSalesData.customerName || "";
+    const customerContact = getSalesData.customerContact || "";
+    const customerTRN = getSalesData.customerTRN || "Nil";
+    const olddate = new Date(getSalesData.date).toLocaleDateString();
+    const grandTotalFromDB = getSalesData.grandTotal || 0; // Use DB value as fallback
+    const realtime = getSalesData.createdAt || 0;
+    const theTime = formatDateTime(realtime);
+    console.log(theTime);
+
+    const date = formatDateToDDMMYYYY(olddate);
+
+    let itemRows = "";
+    let sumOfTotal = 0; // Summary Total (Base Price * Qty)
+    let sumOfVat = 0; // Summary VAT (Total VAT amount)
+    let newDiscount = 0; // Discount amount for the 'Disc' summary line
+    let totalDiscountSum = 0; // Total sum of all discounts (for accurate final calculation)
+
+    // Calculate unformatted sums needed for final totals
+    sumOfTotal = (getSalesData.products || []).reduce(
+      (acc: number, item: any) =>
+        acc + Number(item.rate || 0) * Number(item.qty || 0),
+      0,
+    );
+
+    sumOfVat = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.VAT || 0),
+      0,
+    );
+
+    totalDiscountSum = (getSalesData.products || []).reduce(
+      (acc: number, item: any) => acc + Number(item.discount || 0),
+      0,
+    );
+
+    // --- Conditional Item Row Mapping ---
+    if (getvatstatus?.VATstatus === "withoutVAT") {
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const originalRate = Number(item.rate);
+          const qty = Number(item.qty);
+          const discount = Number(item.discount || 0);
+
+          // 100 ka pehla VAT
+          const firstVat = Number(((originalRate * 5) / 100).toFixed(2));
+
+          // 100 → 95
+          const rateWithoutVat = Number((originalRate - firstVat).toFixed(2));
+
+          // 95 ka VAT
+          const newVat = Number(
+            (((rateWithoutVat * 5) / 100) * qty).toFixed(2),
+          );
+
+          // ⚠️ Yahan discount minus nahi karna
+          const total = Number((rateWithoutVat * qty).toFixed(2));
+
+          // Sirf row mein show karne ke liye
+          const itemNetTotalValue = Number((total + newVat).toFixed(2));
+
+          // Summary update
+          sumOfTotal -= originalRate * qty;
+
+          sumOfTotal += total;
+
+          sumOfVat -= Number(item.VAT || 0);
+
+          sumOfVat += newVat;
+
+          return `
+        <tr>
+          <td>${item.productName}</td>
+          <td style="text-align:right;">${qty}</td>
+          <td style="text-align:right;">
+            ${formatCurrency(rateWithoutVat)}
+          </td>
+          <td style="text-align:right;">
+            ${formatCurrency(newVat)}
+          </td>
+          <td style="text-align:right;">
+            ${formatCurrency(itemNetTotalValue)}
+          </td>
+        </tr>
+      `;
+        })
+        .join("");
+
+      newDiscount = totalDiscountSum;
+    } else {
+      // WITH VAT (Standard Scenario from Image)
+      itemRows = (getSalesData.products || [])
+        .map((item: any) => {
+          const itemRate = formatCurrency(item.rate);
+          const vatAmount = formatCurrency(item.VAT);
+
+          // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
+          const itemBasePrice = Number(item.rate) * Number(item.qty);
+          const itemNetTotalValue = itemBasePrice + Number(item.VAT);
+          const itemNetTotal = formatCurrency(itemNetTotalValue);
+
+          return `
+            <tr>
+              <td>${item.productName}</td>
+              <td style="text-align:right;">${item.qty}</td>
+              <td style="text-align:right;">${itemRate}</td>
+              <td style="text-align:right;">${vatAmount}</td>
+              <td style="text-align:right;">${itemNetTotal}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      // Display Discount: Use the simple total discount
+      newDiscount = totalDiscountSum;
+    }
+
+    // --- Final Grand Total Calculation ---
+    // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
+    const calculatedGrandTotal =
+      Number(sumOfTotal) + Number(sumOfVat) - Number(newDiscount);
+
+    // --- Final Formatting of Totals for HTML Injection ---
+    // These variables will be injected into the HTML templates
+    const finalGrandTotal = formatCurrency(calculatedGrandTotal);
+    const formattedSumOfTotal = formatCurrency(sumOfTotal);
+    const formattedSumOfVat = formatCurrency(sumOfVat);
+    const formattedNewDiscount = formatCurrency(newDiscount);
+
+    let invoiceHtml = "";
+
+    if (latestConfig.printType === "thermal") {
+      invoiceHtml = `<!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Thermal Invoice</title>
+          <style>
+            body {
+              font-family: "Segoe UI", Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              color: #000;
+            }
       
-      totalDiscountSum = (getSalesData.products || []).reduce(
-        (acc: number, item: any) => acc + Number(item.discount || 0),
-        0
-      );
-  
-  
-      // --- Conditional Item Row Mapping ---
-      if (getvatstatus?.VATstatus === "withoutVAT") {
-        itemRows = (getSalesData.products || [])
-          .map((item: any) => {
-            // let  withRate = Number(rest.unitPrice || 0);
-                  
-            //       withRate -= VATtax/qty;  //95
-  
-            //       rate = withRate;  //95
-  
-            //       const baseTotalExclDisc2 = withRate * qty; //95 * 1
-  
-            //       finalDiscount = roundToTwoDecimals(discount);  
-  
-            //       total = roundToTwoDecimals(baseTotalExclDisc2 - discount); 
-  
-            //       anotherDiscount = discount;
-  
-            //       netTotal = roundToTwoDecimals(baseTotalExclDisc); 
-              
-            let itemRate = formatCurrency(item.rate);
-            const vatAmount = formatCurrency(item.VAT);
-  
-            // Convert itemRate to number before arithmetic
-            const numericItemRate = Number(item.rate) - Number(item.VAT)/Number(item.qty);
-            itemRate = formatCurrency(numericItemRate);
-  
-            // Rule: Line Item Total = (Price * Qty) + VAT (NO DISCOUNT)
-            const itemBasePrice = Number(itemRate) * Number(item.qty);
-            const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-            const itemNetTotal = formatCurrency(itemNetTotalValue); 
-  
-            sumOfTotal -= Number(vatAmount);
-  
-            
-            return `
-              <tr>
-                <td>${item.productName}</td>
-                <td style="text-align:right;">${item.qty}</td>
-                <td style="text-align:right;">${itemRate}</td>
-                <td style="text-align:right;">${vatAmount}</td>
-                <td style="text-align:right;">${itemNetTotal}</td>
-              </tr>
-            `;
-          })
-          .join("");
-  
-        // Display Discount: Use the simple total discount sum
-        newDiscount = totalDiscountSum; 
-        
-      } else { // WITH VAT (Standard Scenario from Image)
-        itemRows = (getSalesData.products || [])
-          .map((item: any) => {
-            
-            const itemRate = formatCurrency(item.rate);
-            const vatAmount = formatCurrency(item.VAT);
-            
-            // Rule: Line Item Total = VAT + (Price * Qty) - NO DISCOUNT
-            const itemBasePrice = Number(item.rate) * Number(item.qty);
-            const itemNetTotalValue = itemBasePrice + Number(item.VAT);
-            const itemNetTotal = formatCurrency(itemNetTotalValue); 
-            
-  
-            return `
-              <tr>
-                <td>${item.productName}</td>
-                <td style="text-align:right;">${item.qty}</td>
-                <td style="text-align:right;">${itemRate}</td>
-                <td style="text-align:right;">${vatAmount}</td>
-                <td style="text-align:right;">${itemNetTotal}</td>
-              </tr>
-            `;
-          })
-          .join("");
-  
-        // Display Discount: Use the simple total discount
-        newDiscount = totalDiscountSum; 
-      }
-  
-      // --- Final Grand Total Calculation ---
-      // Rule: Grand Total = Total (Base Price Sum) + Total VAT - Total Discount
-      const calculatedGrandTotal = Number(sumOfTotal) + Number(sumOfVat) - Number(newDiscount);
+            .thermal {
+              width: 65mm;
+              min-height: 110mm;
+              font-size: 12px;
+              padding: 8px;
+              margin: auto;
+              box-sizing: border-box;
+            }
       
-      // --- Final Formatting of Totals for HTML Injection ---
-      // These variables will be injected into the HTML templates
-      const finalGrandTotal = formatCurrency(calculatedGrandTotal);
-      const formattedSumOfTotal = formatCurrency(sumOfTotal);
-      const formattedSumOfVat = formatCurrency(sumOfVat);
-      const formattedNewDiscount = formatCurrency(newDiscount);
-  
-  
-      let invoiceHtml = "";
-  
-      if (latestConfig.printType === "thermal") {
-        invoiceHtml = 
-        `<!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8" />
-            <title>Thermal Invoice</title>
-            <style>
+            /* Header */
+            .header {
+              text-align: center;
+              border-bottom: 1px dashed #000;
+              padding-bottom: 8px;
+              margin-bottom: 6px;
+            }
+      
+            .header img {
+              max-width: 45px;
+              margin: 0 auto 5px;
+              display: block;
+            }
+      
+            .header h3 {
+              font-size: 15px;
+              margin: 2px 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+      
+            .header p {
+              font-size: 11px;
+              margin: 2px 0;
+              line-height: 1.3;
+            }
+      
+            /* Info */
+            .info {
+              margin-bottom: 6px;
+            }
+      
+            .info td {
+              font-size: 11px;
+              padding: 2px 0;
+            }
+      
+            /* Items Table */
+            .items {
+              width: 100%;
+              font-size: 11px;
+              border-collapse: collapse;
+              margin-top: 6px;
+            }
+      
+            .items thead {
+              border-bottom: 1px dashed #000;
+            }
+      
+            .items th {
+              font-weight: bold;
+              padding: 3px 4px; /* left-right spacing add kiya */
+              white-space: nowrap; /* text break nahi hoga */
+            }
+      
+            .items td {
+              padding: 3px 4px;
+              vertical-align: top;
+            }
+      
+            .items th:nth-child(1),
+            .items td:nth-child(1) {
+              text-align: left;
+            }
+      
+            .items th:nth-child(2),
+            .items td:nth-child(2),
+            .items th:nth-child(3),
+            .items td:nth-child(3),
+            .items th:nth-child(4),
+            .items td:nth-child(4),
+            .items th:nth-child(5),
+            .items td:nth-child(5) {
+              text-align: right;
+            }
+      
+            /* Totals */
+            .totals {
+              width: 100%;
+              font-size: 12px;
+              margin-top: 8px;
+              border-top: 1px dashed #000;
+              padding-top: 4px;
+            }
+      
+            .totals td {
+              padding: 3px 0;
+            }
+      
+            .totals td:first-child {
+              font-weight: bold;
+            }
+      
+            .totals td:last-child {
+              text-align: right;
+              font-weight: bold;
+            }
+      
+            /* Footer */
+            .footer {
+              text-align: center;
+              margin-top: 12px;
+              font-size: 10px;
+              border-top: 1px dashed #000;
+              padding-top: 6px;
+              line-height: 1.4;
+            }
+      
+            .footer strong {
+              display: block;
+              margin-bottom: 2px;
+            }
+      
+            .footer p {
+              margin: 0;
+            }
+      
+            /* Print */
+            @media print {
+              @page {
+                size: 80mm auto;
+                margin: 0;
               body {
-                font-family: "Segoe UI", Arial, sans-serif;
+                background: #fff;
                 margin: 0;
                 padding: 0;
-                background: #fff;
-                color: #000;
               }
-        
               .thermal {
-                width: 65mm;
-                min-height: 110mm;
-                font-size: 12px;
-                padding: 8px;
-                margin: auto;
-                box-sizing: border-box;
-              }
-        
-              /* Header */
-              .header {
-                text-align: center;
-                border-bottom: 1px dashed #000;
-                padding-bottom: 8px;
-                margin-bottom: 6px;
-              }
-        
-              .header img {
-                max-width: 45px;
-                margin: 0 auto 5px;
-                display: block;
-              }
-        
-              .header h3 {
-                font-size: 15px;
-                margin: 2px 0;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-              }
-        
-              .header p {
-                font-size: 11px;
-                margin: 2px 0;
-                line-height: 1.3;
-              }
-        
-              /* Info */
-              .info {
-                margin-bottom: 6px;
-              }
-        
-              .info td {
-                font-size: 11px;
-                padding: 2px 0;
-              }
-        
-              /* Items Table */
-              .items {
-                width: 100%;
-                font-size: 11px;
-                border-collapse: collapse;
-                margin-top: 6px;
-              }
-        
-              .items thead {
-                border-bottom: 1px dashed #000;
-              }
-        
-              .items th {
-                font-weight: bold;
-                padding: 3px 4px; /* left-right spacing add kiya */
-                white-space: nowrap; /* text break nahi hoga */
-              }
-        
-              .items td {
-                padding: 3px 4px;
-                vertical-align: top;
-              }
-        
-              .items th:nth-child(1),
-              .items td:nth-child(1) {
-                text-align: left;
-              }
-        
-              .items th:nth-child(2),
-              .items td:nth-child(2),
-              .items th:nth-child(3),
-              .items td:nth-child(3),
-              .items th:nth-child(4),
-              .items td:nth-child(4),
-              .items th:nth-child(5),
-              .items td:nth-child(5) {
-                text-align: right;
-              }
-        
-              /* Totals */
-              .totals {
-                width: 100%;
-                font-size: 12px;
-                margin-top: 8px;
-                border-top: 1px dashed #000;
-                padding-top: 4px;
-              }
-        
-              .totals td {
-                padding: 3px 0;
-              }
-        
-              .totals td:first-child {
-                font-weight: bold;
-              }
-        
-              .totals td:last-child {
-                text-align: right;
-                font-weight: bold;
-              }
-        
-              /* Footer */
-              .footer {
-                text-align: center;
-                margin-top: 12px;
-                font-size: 10px;
-                border-top: 1px dashed #000;
-                padding-top: 6px;
-                line-height: 1.4;
-              }
-        
-              .footer strong {
-                display: block;
-                margin-bottom: 2px;
-              }
-        
-              .footer p {
+                box-shadow: none;
+                border: none;
                 margin: 0;
               }
-        
-              /* Print */
-              @media print {
-                @page {
-                  size: 80mm auto;
-                  margin: 0;
-                body {
-                  background: #fff;
-                  margin: 0;
-                  padding: 0;
-                }
-                .thermal {
-                  box-shadow: none;
-                  border: none;
-                  margin: 0;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="thermal">
-              <!-- Header -->
-              <div class="header">
-                <h3>${businessConfig.rcpt_name}</h3>
-                <p>${businessConfig.rcpt_address}</p>
-                <p><strong> </strong> ${businessConfig.contactString}</p>
-                <p><strong>TAX INVOICE</strong></p>
-                <p><strong>TRN: </strong>104155043300003</p>
-              </div>
-        
-              <!-- Info -->
-              <table class="info">
-                <tr>
-                  <td><strong>Invoice#</strong></td>
-                  <td>${invoiceNo}</td>
-                </tr>
-                <tr>
-                  <td><strong>Date</strong></td>
-                  <td>${date}</td>
-                </tr>
-                <tr>
-                  <td><strong>Customer</strong></td>
-                  <td>${customerName}</td>
-                </tr>
-                <tr>
-                  <td><strong>Contact#</strong></td>
-                  <td>${customerContact}</td>
-                </tr>
-                <tr>
-                  <td><strong>Customer TRN#</strong></td>
-                  <td>${customerTRN}</td>
-  
-                  </tr>
-                  <tr>
-                  <td><strong>Product Warranty:</strong></td>
-                   <td>
-                     ${(getSalesData.products || [])
-                       .map((item: any) => item.productWarranty || "Nil")
-                       .join(", ")}
-                   </td>
-                  </tr>
-              </table>
-        
-              <!-- Items -->
-              <table class="items">
-                <thead>
-                  <tr>
-                    <th style="width:35%;">Item</th>
-                    <th style="width:15%;">Qty</th>
-                    <th style="width:20%;">Price</th>
-                    <th style="width:15%;">VAT 5%</th>
-                    <th style="width:25%;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemRows}
-                </tbody>
-              </table>
-  
-              <!-- Totals -->
-              <table class="totals">
-                <tr>
-                  <td>Total</td>
-                  <td>${formattedSumOfTotal} AED</td>
-                </tr>
-                <tr>
-                  <td>Total VAT</td>
-                  <td>${formattedSumOfVat} AED</td>
-                </tr>
-                <tr>
-                  <td>Disc</td>
-                  <td>${formattedNewDiscount} AED</td>
-                </tr>
-                <tr>
-                  <td>Grand Total</td>
-                  <td>${finalGrandTotal} AED</td>
-                </tr>
-              </table>
+            }
+          </style>
+        </head>
+        <body>
+          <div class="thermal">
+            <!-- Header -->
+            <div class="header">
+              <h3>${businessConfig.rcpt_name}</h3>
+              <p>${businessConfig.rcpt_address}</p>
+              <p><strong> </strong> ${businessConfig.contactString}</p>
+              <p><strong>TAX INVOICE</strong></p>
+              <p><strong>TRN: </strong>104155043300003</p>
             </div>
-          </body>
-        </html>`;
-       }
-      else if (latestConfig.printType === "A4") {
-          // ... (A4 HTML template here)
-          invoiceHtml = `
-          <!DOCTYPE html>
-              <html lang="en">
-              <head>
-                <meta charset="UTF-8" />
-                <title>A4 Invoice</title>
-                <style>
-                  body {
-                    font-family: "Segoe UI", Arial, sans-serif;
-                    background: #f5f7fa;
-                    padding: 20px;
-                    color: #333;
-                  }
-                  .a4 {
-                    width: 210mm;
-                    min-height: 297mm;
-                    margin: auto;
-                    background: #fff;
-                    padding: 30px 35px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                  }
-                  .invoice-header {
-                    text-align: center;
-                    border-bottom: 3px solid #007bff;
-                    padding-bottom: 15px;
-                    margin-bottom: 25px;
-                  }
-                  .invoice-header img {
-                    width: 100px;
-                    height: auto;
-                    margin-bottom: 10px;
-                  }
-                  .invoice-header h1 {
-                    font-size: 28px;
-                    color: #007bff;
-                    margin-bottom: 8px;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                  }
-                  .info-section {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 25px;
-                  }
-                  .info-block {
-                    font-size: 14px;
-                    line-height: 1.6;
-                  }
-                  .info-block strong {
-                    display: inline-block;
-                    min-width: 80px;
-                    color: #222;
-                  }
-                  .items-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 20px;
-                    font-size: 14px;
-                  }
-                  .items-table thead {
-                    background: #007bff;
-                    color: #fff;
-                  }
-                  .items-table th {
-                    padding: 14px 12px;
-                    text-align: left;
-                  }
-                  .items-table td {
-                    border: 1px solid #ddd;
-                    padding: 12px 10px;
-                    text-align: left;
-                  }
-                  .items-table tr:nth-child(even) {
-                    background: #f9f9f9;
-                  }
-                  .items-table tfoot td {
-                    font-weight: bold;
-                    background: #f1f5ff;
-                    border-top: 2px solid #007bff;
-                  }
-                  .items-table tfoot tr td:last-child {
-                    text-align: right;
-                    color: #007bff;
-                  }
-                  .invoice-footer {
-                    text-align: center;
-                    margin-top: 40px;
-                    font-size: 13px;
-                    color: #444;
-                  }
-                  .invoice-footer strong {
-                    display: block;
-                    margin-bottom: 6px;
-                    color: #000;
-                  }
-                  @media print {
-                      .a4 {
-                          box-shadow: none;
-                      }
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="a4">
-                  <div class="invoice-header">
-                    <h1>${(businessConfig as any).rcpt_name}</h1>
-                    <p>${(businessConfig as any).rcpt_address}</p>
-                    <p>${(businessConfig as any).contactString}</p>
-                    <p><strong>TAX INVOICE</strong></p>
-                    <p><strong>TRN:</strong>104155043300003</p>
+      
+            <!-- Info -->
+            <table class="info">
+              <tr>
+                <td><strong>Invoice#</strong></td>
+                <td>${invoiceNo}</td>
+              </tr>
+              <tr>
+                <td><strong>Date</strong></td>
+                <td>${date}</td>
+              </tr>
+              <tr>
+                <td><strong>Customer</strong></td>
+                <td>${customerName}</td>
+              </tr>
+              <tr>
+                <td><strong>Contact#</strong></td>
+                <td>${customerContact}</td>
+              </tr>
+              <tr>
+                <td><strong>Customer TRN#</strong></td>
+                <td>${customerTRN}</td>
+
+                </tr>
+                <tr>
+                <td><strong>Product Warranty:</strong></td>
+                 <td>
+                   ${(getSalesData.products || [])
+                     .map((item: any) => item.productWarranty || "Nil")
+                     .join(", ")}
+                 </td>
+                </tr>
+            </table>
+      
+            <!-- Items -->
+            <table class="items">
+              <thead>
+                <tr>
+                  <th style="width:35%;">Item</th>
+                  <th style="width:15%;">Qty</th>
+                  <th style="width:20%;">Price</th>
+                  <th style="width:15%;">VAT 5%</th>
+                  <th style="width:25%;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemRows}
+              </tbody>
+            </table>
+
+            <!-- Totals -->
+            <table class="totals">
+              <tr>
+                <td>Total</td>
+                <td>${formattedSumOfTotal} AED</td>
+              </tr>
+              <tr>
+                <td>Total VAT</td>
+                <td>${formattedSumOfVat} AED</td>
+              </tr>
+              <tr>
+                <td>Disc</td>
+                <td>${formattedNewDiscount} AED</td>
+              </tr>
+              <tr>
+                <td>Grand Total</td>
+                <td>${finalGrandTotal} AED</td>
+              </tr>
+            </table>
+          </div>
+        </body>
+      </html>`;
+    } else if (latestConfig.printType === "A4") {
+      // ... (A4 HTML template here)
+      invoiceHtml = `
+        <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <title>A4 Invoice</title>
+              <style>
+                body {
+                  font-family: "Segoe UI", Arial, sans-serif;
+                  background: #f5f7fa;
+                  padding: 20px;
+                  color: #333;
+                }
+                .a4 {
+                  width: 210mm;
+                  min-height: 297mm;
+                  margin: auto;
+                  background: #fff;
+                  padding: 30px 35px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                  border-radius: 8px;
+                }
+                .invoice-header {
+                  text-align: center;
+                  border-bottom: 3px solid #007bff;
+                  padding-bottom: 15px;
+                  margin-bottom: 25px;
+                }
+                .invoice-header img {
+                  width: 100px;
+                  height: auto;
+                  margin-bottom: 10px;
+                }
+                .invoice-header h1 {
+                  font-size: 28px;
+                  color: #007bff;
+                  margin-bottom: 8px;
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                }
+                .info-section {
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 25px;
+                }
+                .info-block {
+                  font-size: 14px;
+                  line-height: 1.6;
+                }
+                .info-block strong {
+                  display: inline-block;
+                  min-width: 80px;
+                  color: #222;
+                }
+                .items-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 20px;
+                  font-size: 14px;
+                }
+                .items-table thead {
+                  background: #007bff;
+                  color: #fff;
+                }
+                .items-table th {
+                  padding: 14px 12px;
+                  text-align: left;
+                }
+                .items-table td {
+                  border: 1px solid #ddd;
+                  padding: 12px 10px;
+                  text-align: left;
+                }
+                .items-table tr:nth-child(even) {
+                  background: #f9f9f9;
+                }
+                .items-table tfoot td {
+                  font-weight: bold;
+                  background: #f1f5ff;
+                  border-top: 2px solid #007bff;
+                }
+                .items-table tfoot tr td:last-child {
+                  text-align: right;
+                  color: #007bff;
+                }
+                .invoice-footer {
+                  text-align: center;
+                  margin-top: 40px;
+                  font-size: 13px;
+                  color: #444;
+                }
+                .invoice-footer strong {
+                  display: block;
+                  margin-bottom: 6px;
+                  color: #000;
+                }
+                @media print {
+                    .a4 {
+                        box-shadow: none;
+                    }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="a4">
+                <div class="invoice-header">
+                  <h1>${(businessConfig as any).rcpt_name}</h1>
+                  <p>${(businessConfig as any).rcpt_address}</p>
+                  <p>${(businessConfig as any).contactString}</p>
+                  <p><strong>TAX INVOICE</strong></p>
+                  <p><strong>TRN:</strong>104155043300003</p>
+                </div>
+                <div class="info-section">
+                  <div class="info-block">
+                    <p><strong>Customer</strong> ${customerName}</p>
+                    <p><strong>Contact#</strong> ${customerContact}</p>
+                    <p><strong>Customer TRN</strong> ${customerTRN}</p>
                   </div>
-                  <div class="info-section">
-                    <div class="info-block">
-                      <p><strong>Customer</strong> ${customerName}</p>
-                      <p><strong>Contact#</strong> ${customerContact}</p>
-                      <p><strong>Customer TRN</strong> ${customerTRN}</p>
-                    </div>
-                    <div class="info-block">
-                      <p><strong>Date</strong>${date}</p>
-                      <p><strong>Invoice#</strong> ${invoiceNo}</p>
-                    </div>
-                  </div>
-                  <table class="items-table">
-                    <thead>
-                      <tr>
-                        <th style="width:40%;">Product</th>
-                        <th style="width:15%;">Quantity</th>
-                        <th style="width:15%;">Price</th>
-                        <th style="width:15%;">VAT 5%</th>
-                        <th style="width:15%;">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${itemRows}
-                    </tbody>
-                      <tr>
-                        <td colspan="4">Total</td>
-                        <td>${formattedSumOfTotal} AED</td>
-                      </tr>
-                    <tr>
-                        <td colspan="4">Total VAT</td>
-                        <td>${formattedSumOfVat} AED</td>
-                      </tr>
-                    <tr>
-                        <td colspan="4">Disc</td>
-                        <td>${formattedNewDiscount} AED</td>
-                      </tr>
-                    <tfoot>
-                      <tr>
-                        <td colspan="4">Grand Total</td>
-                        <td>${finalGrandTotal} AED</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                  <div class="invoice-footer">
+                  <div class="info-block">
+                    <p><strong>Date</strong>${date}</p>
+                    <p><strong>Invoice#</strong> ${invoiceNo}</p>
                   </div>
                 </div>
-              </body>
-              </html>
-  `;
-      }
-  
-      else {
-        res.status(400).send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
-        return;
-      }
-  
-      await TempProducts.deleteMany({});
-  
-      res.status(200).send(invoiceHtml);
-    } catch (error) {
-      console.error("Error printing sales data:", error);
-      res.status(500).send({ message: "An unexpected error occurred." });
-    }
-  };
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40%;">Product</th>
+                      <th style="width:15%;">Quantity</th>
+                      <th style="width:15%;">Price</th>
+                      <th style="width:15%;">VAT 5%</th>
+                      <th style="width:15%;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemRows}
+                  </tbody>
+                    <tr>
+                      <td colspan="4">Total</td>
+                      <td>${formattedSumOfTotal} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Total VAT</td>
+                      <td>${formattedSumOfVat} AED</td>
+                    </tr>
+                  <tr>
+                      <td colspan="4">Disc</td>
+                      <td>${formattedNewDiscount} AED</td>
+                    </tr>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">Grand Total</td>
+                      <td>${finalGrandTotal} AED</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <div class="invoice-footer">
+                </div>
+              </div>
+            </body>
+            </html>
+`;
+    } else {
+      res
+        .status(400)
+        .send({ message: "Invalid print type. Please use 'thermal' or 'A4'." });
+      return;
+    }
+
+    await TempProducts.deleteMany({});
+
+    res.status(200).send(invoiceHtml);
+  } catch (error) {
+    console.error("Error printing sales data:", error);
+    res.status(500).send({ message: "An unexpected error occurred." });
+  }
+};
+
+
+
 
 export const getSalesData = async (
   req: express.Request,
@@ -2896,6 +1686,7 @@ export const searchSalesData = async (
 };
 
 
+
 export const getSalesDataById = async (
   req: express.Request,
   res: express.Response,
@@ -2983,35 +1774,38 @@ export const getSalesDataById = async (
         .map((item: any) => {
           const qty = Number(item.qty);
 
-          // Original values from DB
+          // Original values
           const originalRate = Number(item.rate);
+
+          // Total VAT jo DB mein save hai
           const oldVat = Number(item.VAT);
 
-          // Remove old VAT
-          // Example:
+          // Per-unit VAT nikalo
+          const oldVatPerUnit = oldVat / qty;
+
           // 100 -> 95
-          // 50 -> 45
-          const rateWithoutVat = originalRate - oldVat;
+          const rateWithoutVat = Number(
+            (originalRate - oldVatPerUnit).toFixed(2),
+          );
 
-          // VAT per item
-          // Example:
-          // 95 -> 4.75
-          // 45 -> 2.25
-          const vatPerUnit = Number(((rateWithoutVat * 5) / 100).toFixed(2));
+          // 95 ka dobara 5%
+          const newVatPerUnit = Number(((rateWithoutVat * 5) / 100).toFixed(2));
 
-          // Total VAT according to quantity
-          const newVat = Number((vatPerUnit * qty).toFixed(2));
+          // Qty ke hisaab se total VAT
+          const newVat = Number((newVatPerUnit * qty).toFixed(2));
 
-          // Update summary totals
+          // Summary totals
           sumOfTotal += rateWithoutVat * qty;
           sumOfVat += newVat;
 
           const itemRate = formatCurrency(rateWithoutVat);
+
           const vatAmount = formatCurrency(newVat);
 
-          // Final row total
-          const itemNetTotalValue =
-            rateWithoutVat * qty + newVat - Number(item.discount || 0);
+          // Final total
+          const itemNetTotalValue = Number(
+            (rateWithoutVat * qty + newVat).toFixed(2),
+          );
 
           const itemNetTotal = formatCurrency(itemNetTotalValue);
 
@@ -3029,7 +1823,9 @@ export const getSalesDataById = async (
 
       newDiscount = totalDiscountSum;
 
-      calculatedGrandTotal = sumOfTotal + sumOfVat - totalDiscountSum;
+      calculatedGrandTotal = Number(
+        (sumOfTotal + sumOfVat - totalDiscountSum).toFixed(2),
+      );
     } else {
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
@@ -3481,6 +2277,7 @@ export const getSalesDataById = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
+
 
 
 export const deleteFromSaleDetails = async (req: express.Request, res: express.Response): Promise<void> => {
