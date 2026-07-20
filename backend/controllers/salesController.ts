@@ -189,30 +189,40 @@ export const getProductInCart = async (
       // =====================================
       // WITHOUT VAT
       // =====================================
+      // =====================================
+      // WITHOUT VAT
+      // =====================================
       else {
-        let withRate = Number(rest.unitPrice || 0);
+        const originalRate = Number(rest.unitPrice || 0);
  
-        // 100 → 95
-        withRate -= VATtax / qty;
+        // Ek unit ka original VAT
+        const originalVatPerUnit = roundToTwoDecimals((originalRate * 5) / 100);
  
-        rate = roundToTwoDecimals(withRate);
+        // 100 -> 95
+        const rateWithoutVat = roundToTwoDecimals(
+          originalRate - originalVatPerUnit,
+        );
  
-        const baseTotalExclDisc2 = rate * qty;
+        console.log("rateWithoutVat:", rateWithoutVat);
  
-        // 95 ka dobara 5%
-        const secondVAT = roundToTwoDecimals((baseTotalExclDisc2 * 5) / 100);
+        // 95 ka VAT = 4.75
+        const secondVatPerUnit = roundToTwoDecimals((rateWithoutVat * 5) / 100);
  
-        displayVAT = secondVAT;
+        // Total VAT according to qty
+        displayVAT = roundToTwoDecimals(secondVatPerUnit * qty);
+ 
+        // Rate aisa show karna hai ke:
+        // rate + VAT = original price
+        // 95.25 + 4.75 = 100
+        rate = roundToTwoDecimals(originalRate - secondVatPerUnit);
  
         finalDiscount = roundToTwoDecimals(discount);
  
-        // 95 - 20 = 75
-        total = roundToTwoDecimals(baseTotalExclDisc2 - discount);
+        total = roundToTwoDecimals(rate * qty - discount);
  
         anotherDiscount += discount;
  
-        // 75 + 4.75 = 79.75
-        netTotal = roundToTwoDecimals(total + secondVAT);
+        netTotal = roundToTwoDecimals(total + displayVAT);
       }
  
       allItems.push({
@@ -465,6 +475,8 @@ export const createSaleData = async (
   }
 };
 
+
+
 export const printSalesData = async (
   req: express.Request,
   res: express.Response,
@@ -544,24 +556,32 @@ export const printSalesData = async (
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
           const originalRate = Number(item.rate);
+
           const qty = Number(item.qty);
+
           const discount = Number(item.discount || 0);
 
           // 100 ka pehla VAT
           const firstVat = Number(((originalRate * 5) / 100).toFixed(2));
 
-          // 100 → 95
+          // 100 -> 95
           const rateWithoutVat = Number((originalRate - firstVat).toFixed(2));
 
-          // 95 ka VAT
-          const newVat = Number(
-            (((rateWithoutVat * 5) / 100) * qty).toFixed(2),
+          // 95 ka VAT = 4.75
+          const secondVatPerUnit = Number(
+            ((rateWithoutVat * 5) / 100).toFixed(2),
           );
 
-          // ⚠️ Yahan discount minus nahi karna
-          const total = Number((rateWithoutVat * qty).toFixed(2));
+          const newVat = Number((secondVatPerUnit * qty).toFixed(2));
 
-          // Sirf row mein show karne ke liye
+          // 100 - 4.75 = 95.25
+          const displayRate = Number(
+            (originalRate - secondVatPerUnit).toFixed(2),
+          );
+
+          // Discount yahan minus nahi karna
+          const total = Number((displayRate * qty).toFixed(2));
+
           const itemNetTotalValue = Number((total + newVat).toFixed(2));
 
           // Summary update
@@ -578,7 +598,7 @@ export const printSalesData = async (
           <td>${item.productName}</td>
           <td style="text-align:right;">${qty}</td>
           <td style="text-align:right;">
-            ${formatCurrency(rateWithoutVat)}
+            ${formatCurrency(displayRate)}
           </td>
           <td style="text-align:right;">
             ${formatCurrency(newVat)}
@@ -1053,7 +1073,6 @@ export const printSalesData = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
 
 
 
@@ -1686,7 +1705,6 @@ export const searchSalesData = async (
 };
 
 
-
 export const getSalesDataById = async (
   req: express.Request,
   res: express.Response,
@@ -1765,51 +1783,59 @@ export const getSalesDataById = async (
 
     let newDiscount: number; // The specific discount amount to display on the 'Disc' line
     // --- Conditional Mapping and Calculations (VAT Status Logic) ---
-    if (getvatstatus === "withoutVAT") {
-      // Reset totals
-      sumOfTotal = 0;
-      sumOfVat = 0;
+   if (getvatstatus === "withoutVAT") {
+  // Reset totals
+  sumOfTotal = 0;
+  sumOfVat = 0;
 
-      itemRows = (getSalesData.products || [])
-        .map((item: any) => {
-          const qty = Number(item.qty);
+  itemRows = (getSalesData.products || [])
+    .map((item: any) => {
+      const qty = Number(item.qty);
 
-          // Original values
-          const originalRate = Number(item.rate);
+      // Original rate (100)
+      const originalRate = Number(item.rate);
 
-          // Total VAT jo DB mein save hai
-          const oldVat = Number(item.VAT);
+      // DB wala VAT
+      const oldVat = Number(item.VAT);
 
-          // Per-unit VAT nikalo
-          const oldVatPerUnit = oldVat / qty;
+      // Ek piece ka VAT
+      const oldVatPerUnit = oldVat / qty;
 
-          // 100 -> 95
-          const rateWithoutVat = Number(
-            (originalRate - oldVatPerUnit).toFixed(2),
-          );
+      // 100 -> 95
+      const rateWithoutVat = Number(
+        (originalRate - oldVatPerUnit).toFixed(2),
+      );
 
-          // 95 ka dobara 5%
-          const newVatPerUnit = Number(((rateWithoutVat * 5) / 100).toFixed(2));
+      // 95 ka VAT = 4.75
+      const newVatPerUnit = Number(
+        ((rateWithoutVat * 5) / 100).toFixed(2),
+      );
 
-          // Qty ke hisaab se total VAT
-          const newVat = Number((newVatPerUnit * qty).toFixed(2));
+      // Total VAT
+      const newVat = Number(
+        (newVatPerUnit * qty).toFixed(2),
+      );
 
-          // Summary totals
-          sumOfTotal += rateWithoutVat * qty;
-          sumOfVat += newVat;
+      // 100 - 4.75 = 95.25
+      const displayRate = Number(
+        (originalRate - newVatPerUnit).toFixed(2),
+      );
 
-          const itemRate = formatCurrency(rateWithoutVat);
+      // Summary
+      sumOfTotal += displayRate * qty;
+      sumOfVat += newVat;
 
-          const vatAmount = formatCurrency(newVat);
+      const itemRate = formatCurrency(displayRate);
 
-          // Final total
-          const itemNetTotalValue = Number(
-            (rateWithoutVat * qty + newVat).toFixed(2),
-          );
+      const vatAmount = formatCurrency(newVat);
 
-          const itemNetTotal = formatCurrency(itemNetTotalValue);
+      const itemNetTotalValue = Number(
+        (displayRate * qty + newVat).toFixed(2),
+      );
 
-          return `
+      const itemNetTotal = formatCurrency(itemNetTotalValue);
+
+      return `
         <tr>
           <td>${item.productName}</td>
           <td style="text-align:right;">${qty}</td>
@@ -1818,15 +1844,15 @@ export const getSalesDataById = async (
           <td style="text-align:right;">${itemNetTotal}</td>
         </tr>
       `;
-        })
-        .join("");
+    })
+    .join("");
 
-      newDiscount = totalDiscountSum;
+  newDiscount = totalDiscountSum;
 
-      calculatedGrandTotal = Number(
-        (sumOfTotal + sumOfVat - totalDiscountSum).toFixed(2),
-      );
-    } else {
+  calculatedGrandTotal = Number(
+    (sumOfTotal + sumOfVat - totalDiscountSum).toFixed(2),
+  );
+} else {
       itemRows = (getSalesData.products || [])
         .map((item: any) => {
           const itemRate = formatCurrency(item.rate);
@@ -2277,7 +2303,6 @@ export const getSalesDataById = async (
     res.status(500).send({ message: "An unexpected error occurred." });
   }
 };
-
 
 
 export const deleteFromSaleDetails = async (req: express.Request, res: express.Response): Promise<void> => {
